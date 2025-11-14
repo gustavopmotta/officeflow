@@ -58,8 +58,8 @@ with tab_marcas:
             try:
                 response = supabase.table("marcas").insert({"nome": nome_marca}).execute()
                 if response.data:
-                    st.success(f"Marca '{nome_marca}' cadastrada com sucesso!")
                     st.cache_data.clear() # Limpa o cache para atualizar o form de modelos
+                    st.rerun()  # Recarrega a página para atualizar os dados
                 else:
                     st.error(f"Erro ao salvar: {response.error.message}")
             except Exception as e:
@@ -79,8 +79,8 @@ with tab_categorias:
             try:
                 response = supabase.table("categorias").insert({"nome": nome_categoria}).execute()
                 if response.data:
-                    st.success(f"Categoria '{nome_categoria}' cadastrada com sucesso!")
                     st.cache_data.clear() # Limpa o cache para atualizar o form de modelos
+                    st.rerun()  # Recarrega a página para atualizar os dados
                 else:
                     st.error(f"Erro ao salvar: {response.error.message}")
             except Exception as e:

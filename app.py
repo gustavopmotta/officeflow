@@ -1,6 +1,11 @@
 from supabase import create_client, Client
 import streamlit as st
 
+st.title("OFFICEFLOW")
+st.write(
+    "Gerenciador de ativos de TI para pequenas e médias empresas."
+)
+
 @st.cache_resource
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
@@ -8,11 +13,6 @@ def init_connection():
     return create_client(url, key)
 
 supabase: Client = init_connection()
-
-st.title("OFFICEFLOW")
-st.write(
-    "Gerenciador de ativos de TI para pequenas e médias empresas."
-)
 
 def carregar_ativos():
     # A mágica está no select!

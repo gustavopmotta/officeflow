@@ -14,7 +14,6 @@ supabase: Client = init_connection()
 
 # --- Funções para Carregar Dados Auxiliares ---
 # Usamos cache de dados para não buscar no banco a cada interação
-@st.cache_data
 def carregar_opcoes():
     """Busca dados das tabelas auxiliares para preencher os selectbox."""
     modelos = supabase.table("modelos").select("id, nome").execute().data
