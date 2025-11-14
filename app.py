@@ -17,20 +17,28 @@ st.write(
 def carregar_ativos():
     # A mágica está no select!
     # Ele busca 'ativos' e já traz os dados das tabelas relacionadas
-    response = supabase.table("ativos").select(
-        """
-        id,
-        serial_number,
-        status,
-        categorias(nome),
-        modelos(nome, marcas(nome)),
-        setores(nome)
-        """
-    ).execute()
-    return response.data
+    try:
+        response = supabase.table("ativos").select(
+            """
+            id,
+            serial,
+            status:status_id(nome),
+            estados:estado_id(nome),
+            modelos(nome, marcas(nome), categorias(nome)),
+            setores(nome)
+            """
+        ).execute()
+        print("DEBUG: Resposta do Supabase:", response)
+        return response.data
+    
+    except Exception as e:
+        st.error(f"Erro ao carregar dados: {e}")
+        # Traz o erro para a tela do Streamlit
+        print(f"Erro detalhado da API: {e}")
+        return []
 
 st.set_page_config(layout="wide")
-st.title("Dashboard de Ativos 📊")
+st.title("Dashboard de Ativos")
 
 ativos_data = carregar_ativos()
 
