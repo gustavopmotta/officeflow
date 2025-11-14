@@ -1,1 +1,6 @@
 streamlit
+fastapi
+uvicorn
+supabase
+python-dotenv
+pydantic
