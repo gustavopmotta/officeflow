@@ -115,7 +115,7 @@ with tab_modelos:
         st.warning("É necessário cadastrar ao menos uma Marca e uma Categoria antes de cadastrar um Modelo.")
     else:
         with st.form("form_modelo", clear_on_submit=True):
-            nome_modelo = st.text_input("Nome do Modelo (ex: 'Latitude 5490', 'Magic Mouse 2')")
+            nome_modelo = st.text_input("Nome do Modelo")
             
             # Menus suspensos com dados carregados no início
             marca_selecionada = st.selectbox("Marca do Modelo", options=marcas_map.keys())
