@@ -36,106 +36,112 @@ except Exception as e:
     marcas_map = {}
     categorias_map = {}
 
-st.subheader("Cadastrar Novo Modelo")
+tab_cadastro, tab_lista = st.tabs(["Cadastrar","Lista"])
 
-if not marcas_map or not categorias_map:
-    st.warning("É necessário cadastrar ao menos uma Marca e uma Categoria antes de cadastrar um Modelo.")
-else:
-    with st.form("form_modelo", clear_on_submit=True):
-        nome_modelo = st.text_input("Nome do Modelo")
-        
-        # Menus suspensos com dados carregados no início
-        marca_selecionada = st.selectbox("Marca do Modelo", options=marcas_map.keys())
-        categoria_selecionada = st.selectbox("Categoria do Modelo", options=categorias_map.keys())
-        
-        submitted_modelo = st.form_submit_button("Salvar Modelo")
-    if submitted_modelo:
-        if not nome_modelo:
-            st.error("Por favor, preencha o nome do modelo.")
-        else:
-            try:
-                # Converter nomes selecionados de volta para IDs
-                marca_id = marcas_map[marca_selecionada]
-                categoria_id = categorias_map[categoria_selecionada]
-                
-                novo_modelo = {
-                    "nome": nome_modelo,
-                    "marca_id": marca_id,
-                    "categoria_id": categoria_id
-                }
-                
-                response = supabase.table("modelos").insert(novo_modelo).execute()
-                
-                if response.data:
-                    st.success(f"Modelo '{nome_modelo}' cadastrado com sucesso!")
-                else:
-                    st.error(f"Erro ao salvar: {response.error.message}")
-                    
-            except Exception as e:
-                st.error(f"Erro: {e}")
+with tab_cadastro:
+    st.subheader("Cadastrar Novo Modelo")
 
-# --- Criar Abas (Tabs) ---
-col_marcas, col_categorias, col_setores = st.columns(3)
+    if not marcas_map or not categorias_map:
+        st.warning("É necessário cadastrar ao menos uma Marca e uma Categoria antes de cadastrar um Modelo.")
+    else:
+        with st.form("form_modelo", clear_on_submit=True):
+            nome_modelo = st.text_input("Nome do Modelo")
 
-# --- Aba 1: Marcas ---
-with col_marcas:
-    st.subheader("Cadastrar Nova Marca")
-    with st.form("form_marca", clear_on_submit=True):
-        nome_marca = st.text_input("Nome da Marca")
-        submitted_marca = st.form_submit_button("Salvar Marca")
+            # Menus suspensos com dados carregados no início
+            marca_selecionada = st.selectbox("Marca do Modelo", options=marcas_map.keys())
+            categoria_selecionada = st.selectbox("Categoria do Modelo", options=categorias_map.keys())
 
-    if submitted_marca:
-        if not nome_marca:
-            st.error("Por favor, preencha o nome da marca.")
-        else:
-            try:
-                response = supabase.table("marcas").insert({"nome": nome_marca}).execute()
-                if response.data:
-                    st.cache_data.clear() # Limpa o cache para atualizar o form de modelos
-                    st.rerun()  # Recarrega a página para atualizar os dados
-                else:
-                    st.error(f"Erro ao salvar: {response.error.message}")
-            except Exception as e:
-                st.error(f"Erro: {e}")
+            submitted_modelo = st.form_submit_button("Salvar Modelo")
+        if submitted_modelo:
+            if not nome_modelo:
+                st.error("Por favor, preencha o nome do modelo.")
+            else:
+                try:
+                    # Converter nomes selecionados de volta para IDs
+                    marca_id = marcas_map[marca_selecionada]
+                    categoria_id = categorias_map[categoria_selecionada]
 
-# --- Aba 2: Categorias ---
-with col_categorias:
-    st.subheader("Cadastrar Nova Categoria")
-    with st.form("form_categoria", clear_on_submit=True):
-        nome_categoria = st.text_input("Nome da Categoria")
-        submitted_categoria = st.form_submit_button("Salvar Categoria")
+                    novo_modelo = {
+                        "nome": nome_modelo,
+                        "marca_id": marca_id,
+                        "categoria_id": categoria_id
+                    }
 
-    if submitted_categoria:
-        if not nome_categoria:
-            st.error("Por favor, preencha o nome da categoria.")
-        else:
-            try:
-                response = supabase.table("categorias").insert({"nome": nome_categoria}).execute()
-                if response.data:
-                    st.cache_data.clear() # Limpa o cache para atualizar o form de modelos
-                    st.rerun()  # Recarrega a página para atualizar os dados
-                else:
-                    st.error(f"Erro ao salvar: {response.error.message}")
-            except Exception as e:
-                st.error(f"Erro: {e}")
+                    response = supabase.table("modelos").insert(novo_modelo).execute()
 
-# --- Aba 3: Setores ---
-with col_setores:
-    st.subheader("Cadastrar Novo Setor")
-    with st.form("form_setor", clear_on_submit=True):
-        nome_setor = st.text_input("Nome do Setor")
-        submitted_setor = st.form_submit_button("Salvar Setor")
+                    if response.data:
+                        st.success(f"Modelo '{nome_modelo}' cadastrado com sucesso!")
+                    else:
+                        st.error(f"Erro ao salvar: {response.error.message}")
 
-    if submitted_setor:
-        if not nome_setor:
-            st.error("Por favor, preencha o nome do setor.")
-        else:
-            try:
-                response = supabase.table("setores").insert({"nome": nome_setor}).execute()
-                if response.data:
-                    st.success(f"Setor '{nome_setor}' cadastrado com sucesso!")
-                    # Não precisa limpar o cache aqui, pois setores não são usados em "Modelos"
-                else:
-                    st.error(f"Erro ao salvar: {response.error.message}")
-            except Exception as e:
-                st.error(f"Erro: {e}")
+                except Exception as e:
+                    st.error(f"Erro: {e}")
+
+    # --- Criar Abas (Tabs) ---
+    col_marcas, col_categorias, col_setores = st.columns(3)
+
+    # --- Aba 1: Marcas ---
+    with col_marcas:
+        st.subheader("Cadastrar Nova Marca")
+        with st.form("form_marca", clear_on_submit=True):
+            nome_marca = st.text_input("Nome da Marca")
+            submitted_marca = st.form_submit_button("Salvar Marca")
+
+        if submitted_marca:
+            if not nome_marca:
+                st.error("Por favor, preencha o nome da marca.")
+            else:
+                try:
+                    response = supabase.table("marcas").insert({"nome": nome_marca}).execute()
+                    if response.data:
+                        st.cache_data.clear() # Limpa o cache para atualizar o form de modelos
+                        st.rerun()  # Recarrega a página para atualizar os dados
+                    else:
+                        st.error(f"Erro ao salvar: {response.error.message}")
+                except Exception as e:
+                    st.error(f"Erro: {e}")
+
+    # --- Aba 2: Categorias ---
+    with col_categorias:
+        st.subheader("Cadastrar Nova Categoria")
+        with st.form("form_categoria", clear_on_submit=True):
+            nome_categoria = st.text_input("Nome da Categoria")
+            submitted_categoria = st.form_submit_button("Salvar Categoria")
+
+        if submitted_categoria:
+            if not nome_categoria:
+                st.error("Por favor, preencha o nome da categoria.")
+            else:
+                try:
+                    response = supabase.table("categorias").insert({"nome": nome_categoria}).execute()
+                    if response.data:
+                        st.cache_data.clear() # Limpa o cache para atualizar o form de modelos
+                        st.rerun()  # Recarrega a página para atualizar os dados
+                    else:
+                        st.error(f"Erro ao salvar: {response.error.message}")
+                except Exception as e:
+                    st.error(f"Erro: {e}")
+
+    # --- Aba 3: Setores ---
+    with col_setores:
+        st.subheader("Cadastrar Novo Setor")
+        with st.form("form_setor", clear_on_submit=True):
+            nome_setor = st.text_input("Nome do Setor")
+            submitted_setor = st.form_submit_button("Salvar Setor")
+
+        if submitted_setor:
+            if not nome_setor:
+                st.error("Por favor, preencha o nome do setor.")
+            else:
+                try:
+                    response = supabase.table("setores").insert({"nome": nome_setor}).execute()
+                    if response.data:
+                        st.success(f"Setor '{nome_setor}' cadastrado com sucesso!")
+                        # Não precisa limpar o cache aqui, pois setores não são usados em "Modelos"
+                    else:
+                        st.error(f"Erro ao salvar: {response.error.message}")
+                except Exception as e:
+                    st.error(f"Erro: {e}")
+
+with tab_lista:
+    pass
