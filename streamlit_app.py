@@ -15,11 +15,6 @@ def init_connection():
 
 supabase: Client = init_connection()
 
-if supabase:
-    st.success("Conexão com o Supabase estabelecida com sucesso!")
-else:
-    st.error("A inicialização do Supabase falhou. Verifique os segredos.")
-
 def carregar_ativos():
     try:
         response = supabase.table("ativos").select(

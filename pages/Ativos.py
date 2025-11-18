@@ -121,7 +121,6 @@ with tab_cadastro:
                 ]
                 # Cria o mapa apenas com os modelos filtrados
                 modelos_filtrados_map = {m['nome']: m['id'] for m in modelos_filtrados}
-                print(f"DEBUG: Modelos filtrados para a categoria '{categoria_selecionada}': {modelos_filtrados_map}")
             else:
                 # Se nenhuma categoria for selecionada, o mapa de modelos fica vazio
                 modelos_filtrados_map = {}
