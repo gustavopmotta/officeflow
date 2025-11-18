@@ -15,6 +15,11 @@ def init_connection():
 
 supabase: Client = init_connection()
 
+if supabase:
+    st.success("Conexão com o Supabase estabelecida com sucesso!")
+else:
+    st.error("A inicialização do Supabase falhou. Verifique os segredos.")
+
 def carregar_ativos():
     try:
         response = supabase.table("ativos").select(
@@ -80,7 +85,7 @@ def processar_dados(dados_brutos):
 
     return df_limpo
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Dashboard",layout="wide")
 st.title("Dashboard de Ativos")
 
 ativos_data = carregar_ativos()
