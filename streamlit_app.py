@@ -87,6 +87,6 @@ ativos_data = carregar_ativos()
 
 if ativos_data:
     df_processado = processar_dados(ativos_data)
-    st.dataframe(df_processado, use_container_width=True)
+    st.dataframe(df_processado, width="stretch")
 else:
     st.info("Nenhum ativo cadastrado.")
