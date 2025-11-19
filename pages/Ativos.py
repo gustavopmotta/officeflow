@@ -11,9 +11,9 @@ def init_connection():
 supabase: Client = init_connection()
 
 st.title("Gerenciar Ativos")
-tab_lista, tab_cadastro = st.tabs(["Lista de Ativos", "Cadastrar Novo Ativo"])
-
 st.set_page_config(page_title="Gerenciar Ativos", layout="wide")
+
+tab_lista, tab_cadastro = st.tabs(["Lista de Ativos", "Cadastrar Novo Ativo"])
 
 def carregar_opcoes():
     modelos = supabase.table("modelos").select("id, categoria_id, nome").execute().data
@@ -181,4 +181,4 @@ with tab_lista:
     if df_ativos.empty:
         st.info("Nenhum ativo cadastrado encontrado.")
     else:
-        st.data_editor(df_ativos, num_rows="fixed", height="stretch", width="stretch")
+        st.data_editor(df_ativos, num_rows="dynamic", height="stretch", width="stretch")

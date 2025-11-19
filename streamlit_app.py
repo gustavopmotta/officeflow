@@ -28,7 +28,6 @@ def carregar_ativos():
             """
         ).execute()
 
-        print("DEBUG: Resposta do Supabase:", response)
         return response.data
     
     except Exception as e:
