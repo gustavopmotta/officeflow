@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
 import random
+import datetime
 
 # --- Conexão com Supabase ---
 @st.cache_resource
@@ -20,193 +21,203 @@ def carregar_opcoes():
     setores = supabase.table("setores").select("id, nome").order("nome").execute().data
     status = supabase.table("status").select("id, nome").order("nome").execute().data
     estados = supabase.table("estados").select("id, nome").order("nome").execute().data
-    
-    return modelos, categorias, setores, status, estados
+    lojas = supabase.table("lojas").select("id","nome").order("nome").execute().data
+
+    return modelos, categorias, setores, status, estados, lojas
 
 # --- Página de Cadastro ---
 st.title("Registrar Nova Compra de Ativos")
 st.set_page_config(layout="wide")
 
-# Não precisamos mais inicializar 'seriais_gerados'
-# if 'seriais_gerados' not in st.session_state:
-#     st.session_state.seriais_gerados = []
-
 try:
-    modelos_data, categorias_data, setores_data, status_data, estados_data = carregar_opcoes()
+    modelos_data, categorias_data, setores_data, status_data, estados_data, lojas_data = carregar_opcoes()
 
     # --- Mapeamentos ---
     categorias_map = {c['nome']: c['id'] for c in categorias_data}
     setores_map = {s['nome']: s['id'] for s in setores_data}
     status_map = {s['nome']: s['id'] for s in status_data}
     estados_map = {e['nome']: e['id'] for e in estados_data}
+    lojas_map = {f['nome']: f['id'] for f in lojas_data}
 
-    if not categorias_map or not setores_map or not status_map or not estados_data:
+    if not categorias_map or not setores_map or not status_map or not estados_map:
         st.error("Dados auxiliares incompletos. Verifique o 'Cadastro Geral'.")
     else:
-        # --- ETAPA 1: CATEGORIA DA COMPRA ---
-        st.subheader("1. Categoria do Ativo")
-        categoria_selecionada = st.selectbox("Categoria do Ativo", options=categorias_map.keys(), label_visibility="collapsed")
-
+        # --- ETAPA 1: INFORMAÇÕES DO LOTE (FORA DO FORMULÁRIO) ---    
+        st.subheader("1. Itens da Compra")
+        st.info("Primeiro, defina a Categoria, Modelo, Valor e Quantidade do lote.")
+        
+        col_categoria, col_modelo, col_valor, col_quant = st.columns(4)
+        
+        with col_categoria:
+            categoria_selecionada = st.selectbox(
+                "Categoria", 
+                options=categorias_map.keys(), 
+                key="compra_categoria"
+            )
+        
+        # Lógica de filtragem e formatação dos modelos
+        modelos_map = {}
         if categoria_selecionada:
             categoria_id_selecionada = categorias_map[categoria_selecionada]
-            modelos_filtrados = [
-                m for m in modelos_data 
-                if m.get('categoria_id') == categoria_id_selecionada
-            ]
+            modelos_filtrados = [m for m in modelos_data if m.get('categoria_id') == categoria_id_selecionada]
             
-            # Criamos o mapa formatado
-            modelos_filtrados_map = {}
             for m in modelos_filtrados:
-                # Pega o nome da marca (com segurança)
-                marca_nome = "Sem Marca"
-                if m.get('marcas') and isinstance(m['marcas'], dict) and m['marcas'].get('nome'):
-                    marca_nome = m['marcas']['nome']
-                
-                # Formata o nome de exibição: "Marca - Modelo"
-                display_name = f"{marca_nome} {m['nome']}"
-                modelos_filtrados_map[display_name] = m['id'] # A chave é o nome formatado, o valor é o ID
-        else:
-            modelos_filtrados_map = {} # Vazio se nenhuma categoria for selecionada
-
-        # --- ETAPA 2: INFORMAÇÕES DA COMPRA ---
-        st.subheader("2. Informações da Compra")
+                marca_nome = m.get('marcas', {}).get('nome', 'Sem Marca')
+                display_name = f"{marca_nome} - {m['nome']}"
+                modelos_map[display_name] = m['id']
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.selectbox("Modelo Comprado", options=modelos_filtrados_map.keys(), key="compra_modelo")
-        with col2:
+        with col_modelo:
+            st.selectbox("Modelo Comprado", options=modelos_map.keys(), key="compra_modelo")
+        with col_valor:
             st.number_input("Valor Unitário (R$)", min_value=0.01, format="%.2f", key="compra_valor")
-        with col3:
+        with col_quant:
             st.number_input("Quantidade Comprada", min_value=1, step=1, value=1, key="compra_qtd")
         
         st.divider()
 
-        # --- LÓGICA DE CALLBACK (MODIFICADA) ---
+        # --- BOTÃO GERADOR DE SERIAL (FORA DO FORMULÁRIO) ---
         def gerar_seriais_callback():
             try:
-                # Pega o nome formatado (ex: "DELL - LATITUDE 5490")
                 modelo_display_name = st.session_state.compra_modelo
                 qtd = st.session_state.compra_qtd
                 
-                # 1. Verifica se um modelo foi selecionado
                 if not modelo_display_name:
                     st.warning("Por favor, selecione um modelo primeiro.")
                     return
 
-                # 2. Encontra o ID do modelo usando o mapa formatado
-                # (Se isso falhar, o 'except' abaixo vai pegar)
-                modelo_id = modelos_filtrados_map[modelo_display_name]
-                
-                # 3. Encontra o objeto do modelo na lista de dados *completa*
+                modelo_id = modelos_map[modelo_display_name]
                 modelo_obj = next(m for m in modelos_data if m['id'] == modelo_id)
                 
-                # --- 4. VERIFICAÇÃO DE SEGURANÇA (A CORREÇÃO) ---
-                # Verifica se a marca existe e tem um nome
-                if modelo_obj.get('marcas') and isinstance(modelo_obj['marcas'], dict) and modelo_obj['marcas'].get('nome'):
-                    marca_nome = modelo_obj['marcas']['nome'].split(' ')[0].upper()
-                else:
-                    marca_nome = "S-MARCA" # "S-MARCA" = "Sem Marca"
-                # --- FIM DA CORREÇÃO ---
+                marca_nome = "S-MARCA"
+                if modelo_obj.get('marcas') and isinstance(modelo_obj['marcas'], dict):
+                    marca_nome = modelo_obj['marcas'].get('nome', 'S-MARCA').split(' ')[0].upper()
                 
-                # 5. Pega o nome do modelo
                 modelo_prefixo = modelo_obj['nome'].split(' ')[0].upper()
                 
-                # 6. Gera os seriais
                 for i in range(qtd):
                     sufixo_aleatorio = random.randint(10000, 99999)
                     novo_serial = f"{marca_nome}-{modelo_prefixo}-{sufixo_aleatorio}"
                     st.session_state[f"serial_{i}"] = novo_serial
                 
             except Exception as e:
-                # Mensagem de erro mais detalhada
                 st.error(f"Erro ao gerar seriais: {e}")
-                st.info(f"Ocorreu um erro ao processar o modelo: '{st.session_state.compra_modelo}'. Verifique se este modelo possui uma marca associada no 'Cadastro Geral'.")
 
-        # --- Botão Gerador ---
         st.button(
             "Gerar Seriais Sugeridos",
             on_click=gerar_seriais_callback,
-            help="Preenche os campos abaixo com seriais únicos baseados na Marca e Modelo."
+            help="Preenche os campos de serial abaixo."
         )
 
-        # --- ETAPA 3: FORMULÁRIO DE REGISTRO ---
-        st.subheader("3. Registro dos Números de Série")
-        
-        qtd_real = st.session_state.compra_qtd
-
+        # --- ETAPA 2: FORMULÁRIO PRINCIPAL (COM TUDO DENTRO) ---
         with st.form("form_compra_ativos"):
             
+            # --- 2A. Informações da Compra (Nova Seção) ---
+            st.subheader("2. Informações da Nota Fiscal")
+            col_nf, col_data, col_loja, col_valor_nf = st.columns(4)
+            with col_nf:
+                nf = st.text_input("Nota Fiscal (Obrigatório)", key="compra_nf")
+            with col_data:
+                data_compra = st.date_input("Data da Compra", datetime.date.today(), key="compra_data")
+            with col_loja:
+                loja = st.selectbox(
+                    "Fornecedor",
+                    options=lojas_map.keys(),
+                    index=None,
+                    placeholder="Selecione...",
+                    key="compra_fornecedor"
+                )
+            with col_valor_nf:
+                valor_total_nota = st.number_input("Valor Total (R$)", min_value=0.0, format="%.2f", key="compra_valor_total")
+
+            # --- 2B. Inputs dos Seriais ---
+            st.subheader(f"3. Números de Série ({st.session_state.compra_qtd} itens)")
             seriais_input = []
             cols = st.columns(3)
-            # Não precisamos mais de 'seriais_gerados' ou 'valor_padrao' aqui
-
-            for i in range(qtd_real):
+            for i in range(st.session_state.compra_qtd):
                 with cols[i % 3]:
-                    # O widget agora lê seu valor automaticamente do session_state
-                    # graças ao parâmetro 'key'.
-                    serial = st.text_input(
-                        f"Serial {i+1}",
-                        key=f"serial_{i}" # Esta é a parte importante
-                    )
+                    serial = st.text_input(f"Serial {i+1}", key=f"serial_{i}")
                     seriais_input.append(serial)
             
-            st.divider()
-            
-            # --- Status, Estado e Setor ---
-            st.write("Definir o status inicial para todos os ativos desta compra:")
+            # --- 2C. Status Padrão ---
+            st.subheader("4. Status Padrão (para este lote)")
             col_status, col_estado, col_setor = st.columns(3)
             with col_status:
-                status_keys = list(status_map.keys())
-                status_selecionado = st.selectbox("Status Inicial", options=status_keys)
-            
+                status_selecionado = st.selectbox("Status", options=status_map.keys())
             with col_estado:
-                estado_keys = list(estados_map.keys())
-                estado_selecionado = st.selectbox("Estado Inicial", options=estado_keys)
-            
+                estado_selecionado = st.selectbox("Estado", options=estados_map.keys())
             with col_setor:
-                setor_keys = list(setores_map.keys())
-                setor_selecionado = st.selectbox("Setor Inicial", options=setor_keys)
+                setor_selecionado = st.selectbox("Setor (Local)", options=setores_map.keys())
 
-            submitted = st.form_submit_button("Cadastrar Todos os Ativos")
-
-        # --- ETAPA 3: LÓGICA DE SUBMISSÃO ---
-        if submitted:
-            # Não precisamos mais limpar 'seriais_gerados'
+            st.divider()
             
-            # Validação
-            if any(s.strip() == "" for s in seriais_input):
+            # --- Botão de Envio ---
+            submitted = st.form_submit_button("Cadastrar Compra e Todos os Ativos")
+
+        # --- ETAPA 3: LÓGICA DE SUBMISSÃO (Fora do Form) ---
+        if submitted:
+            # --- Validações ---
+            if not nf:
+                st.error("Erro: O campo 'Nota Fiscal' é obrigatório.")
+            elif 'compra_modelo' not in st.session_state or not st.session_state.compra_modelo:
+                 st.error("Erro: Nenhum modelo foi selecionado.")
+            elif any(s.strip() == "" for s in seriais_input):
                 st.error("Erro: Todos os campos de número de série devem ser preenchidos.")
             elif len(set(seriais_input)) != len(seriais_input):
                 st.error("Erro: Existem números de série duplicados na sua lista.")
             else:
-                try:
-                    # Preparar os dados para o Supabase
-                    modelo_id = modelos_filtrados_map[st.session_state.compra_modelo]
-                    status_id = status_map[status_selecionado]
-                    estado_id = estados_map[estado_selecionado]
-                    local_id = setores_map[setor_selecionado]
-                    valor_unit = st.session_state.compra_valor
+                with st.spinner("Registrando compra e ativos..."):
+                    try:
+                        # --- ETAPA 1: INSERIR A COMPRA ---
+                        loja_id_para_salvar = None
+                        if loja:
+                            loja_id_para_salvar = lojas_map[loja]
+                        
+                        nova_compra_dados = {
+                            "data_compra": data_compra.isoformat(),
+                            "nota_fiscal": nf,
+                            "fornecedor_id": loja_id_para_salvar,
+                            "valor_total_nota": valor_total_nota if valor_total_nota > 0 else None
+                        }
+                        
+                        response_compra = supabase.table("compras").insert(nova_compra_dados).execute()
+                        
+                        if not response_compra.data:
+                            st.error(f"Erro ao criar registro de compra: {response_compra.error.message}")
+                            st.stop()
+                        
+                        nova_compra_id = response_compra.data[0]['id']
+                        
+                        # --- ETAPA 2: PREPARAR OS ATIVOS ---
+                        modelo_id = modelos_map[st.session_state.compra_modelo]
+                        status_id = status_map[status_selecionado]
+                        estado_id = estados_map[estado_selecionado]
+                        local_id = setores_map[setor_selecionado]
+                        valor_unit = st.session_state.compra_valor
 
-                    novos_ativos_lista = []
-                    for serial in seriais_input:
-                        novos_ativos_lista.append({
-                            "serial": serial.strip(),
-                            "modelo_id": modelo_id,
-                            "status_id": status_id,
-                            "estado_id": estado_id,
-                            "local_id": local_id,
-                            "valor": valor_unit 
-                        })
-                    
-                    response = supabase.table("ativos").insert(novos_ativos_lista).execute()
-                    
-                    if response.data:
-                        st.success(f"{len(response.data)} novo(s) ativo(s) cadastrados com sucesso!")
-                        st.rerun() # Limpa o formulário e recarrega
-                    else:
-                        st.error(f"Erro ao salvar no banco de dados: {response.error.message}")
-                except Exception as e:
-                     st.error(f"Ocorreu um erro ao processar os dados: {e}")
+                        novos_ativos_lista = []
+                        for serial in seriais_input:
+                            novos_ativos_lista.append({
+                                "serial": serial.strip(),
+                                "modelo_id": modelo_id,
+                                "status_id": status_id,
+                                "estado_id": estado_id,
+                                "local_id": local_id,
+                                "valor_unitario": valor_unit,
+                                "compra_id": nova_compra_id
+                            })
+                        
+                        # --- ETAPA 3: INSERIR OS ATIVOS ---
+                        response_ativos = supabase.table("ativos").insert(novos_ativos_lista).execute()
+
+                        if response_ativos.data:
+                            st.success(f"Compra {nf} e {len(response_ativos.data)} ativo(s) cadastrados com sucesso!")
+                            st.rerun()
+                        else:
+                            st.error(f"Erro ao cadastrar os ativos: {response_ativos.error.message}")
+                            st.warning(f"Atenção: O registro da Compra (ID: {nova_compra_id}) foi criado, mas os ativos falharam.")
+                            
+                    except Exception as e:
+                         st.error(f"Ocorreu um erro fatal: {e}")
 
 except Exception as e:
     st.error(f"Não foi possível carregar as opções de cadastro: {e}")
