@@ -4,6 +4,9 @@ import pandas as pd
 import random
 import datetime
 
+# --- Configuração da Página (DEVE SER O 1º COMANDO) ---
+st.set_page_config(page_title="Registrar Compra", layout="wide")
+
 # --- Conexão com Supabase ---
 @st.cache_resource
 def init_connection():
@@ -14,6 +17,7 @@ def init_connection():
 supabase: Client = init_connection()
 
 # --- Funções para Carregar Dados Auxiliares ---
+@st.cache_data # Adicionado cache para performance
 def carregar_opcoes():
     """Busca dados das tabelas auxiliares para preencher os selectbox."""
     modelos = supabase.table("modelos").select("id, nome, categoria_id, marcas(nome)").order("nome").execute().data
@@ -21,13 +25,13 @@ def carregar_opcoes():
     setores = supabase.table("setores").select("id, nome").order("nome").execute().data
     status = supabase.table("status").select("id, nome").order("nome").execute().data
     estados = supabase.table("estados").select("id, nome").order("nome").execute().data
-    lojas = supabase.table("lojas").select("id","nome").order("nome").execute().data
+    # CORREÇÃO: O nome da tabela é 'lojas'
+    lojas = supabase.table("lojas").select("id, nome").order("nome").execute().data 
 
     return modelos, categorias, setores, status, estados, lojas
 
 # --- Página de Cadastro ---
 st.title("Registrar Nova Compra de Ativos")
-st.set_page_config(layout="wide")
 
 try:
     modelos_data, categorias_data, setores_data, status_data, estados_data, lojas_data = carregar_opcoes()
@@ -37,12 +41,12 @@ try:
     setores_map = {s['nome']: s['id'] for s in setores_data}
     status_map = {s['nome']: s['id'] for s in status_data}
     estados_map = {e['nome']: e['id'] for e in estados_data}
-    lojas_map = {f['nome']: f['id'] for f in lojas_data}
+    lojas_map = {f['nome']: f['id'] for f in lojas_data} # Mapa de lojas
 
     if not categorias_map or not setores_map or not status_map or not estados_map:
         st.error("Dados auxiliares incompletos. Verifique o 'Cadastro Geral'.")
     else:
-        # --- ETAPA 1: INFORMAÇÕES DO LOTE (FORA DO FORMULÁRIO) ---    
+        # --- ETAPA 1: INFORMAÇÕES DO LOTE (FORA DO FORMULÁRIO) ---     
         st.subheader("1. Itens da Compra")
         st.info("Primeiro, defina a Categoria, Modelo, Valor e Quantidade do lote.")
         
@@ -120,14 +124,22 @@ try:
                 data_compra = st.date_input("Data da Compra", datetime.date.today(), key="compra_data")
             with col_loja:
                 loja = st.selectbox(
-                    "Fornecedor",
+                    "Loja", # Trocado de 'Fornecedor' para 'Loja'
                     options=lojas_map.keys(),
                     index=None,
                     placeholder="Selecione...",
-                    key="compra_fornecedor"
+                    key="compra_loja" # Chave atualizada
                 )
             with col_valor_nf:
-                valor_total_nota = st.number_input("Valor Total (R$)", min_value=0.0, format="%.2f", key="compra_valor_total")
+                valor_total_nota = st.number_input("Valor Total NF (R$)", min_value=0.0, format="%.2f", key="compra_valor_total")
+
+            # --- ADICIONADO: UPLOAD DE PDF ---
+            uploaded_pdf = st.file_uploader(
+                "Anexar PDF da Nota Fiscal",
+                type="pdf",
+                key="compra_pdf"
+            )
+            st.divider()
 
             # --- 2B. Inputs dos Seriais ---
             st.subheader(f"3. Números de Série ({st.session_state.compra_qtd} itens)")
@@ -160,29 +172,47 @@ try:
                 st.error("Erro: O campo 'Nota Fiscal' é obrigatório.")
             elif 'compra_modelo' not in st.session_state or not st.session_state.compra_modelo:
                  st.error("Erro: Nenhum modelo foi selecionado.")
+            elif not loja:
+                 st.error("Erro: O campo 'Loja' é obrigatório.")
             elif any(s.strip() == "" for s in seriais_input):
                 st.error("Erro: Todos os campos de número de série devem ser preenchidos.")
             elif len(set(seriais_input)) != len(seriais_input):
-                st.error("Erro: Existem números de série duplicados na sua lista.")
+                st.error("Erro: Existem números de série duplicados na lista.")
             else:
                 with st.spinner("Registrando compra e ativos..."):
                     try:
+                        # --- LÓGICA DE UPLOAD DO PDF ---
+                        path_para_salvar = None
+                        if uploaded_pdf is not None:
+                            pdf_bytes = uploaded_pdf.getvalue()
+                            # Salva o PDF usando o número da NF como identificador
+                            file_path_in_storage = f"public/nf-{nf.strip()}.pdf"
+                            try:
+                                supabase.storage.from_("NFs").upload(
+                                    file_path_in_storage, pdf_bytes,
+                                    {"content-type": "application/pdf", "upsert": "true"}
+                                )
+                                path_para_salvar = file_path_in_storage
+                            except Exception as storage_error:
+                                st.error(f"Erro ao salvar PDF no Storage: {storage_error}")
+                                st.stop() # Para se o upload do PDF falhar
+
                         # --- ETAPA 1: INSERIR A COMPRA ---
-                        loja_id_para_salvar = None
-                        if loja:
-                            loja_id_para_salvar = lojas_map[loja]
+                        loja_id_para_salvar = lojas_map[loja]
                         
                         nova_compra_dados = {
                             "data_compra": data_compra.isoformat(),
                             "nota_fiscal": nf,
-                            "fornecedor_id": loja_id_para_salvar,
-                            "valor_total_nota": valor_total_nota if valor_total_nota > 0 else None
+                            "loja_id": loja_id_para_salvar, 
+                            "valor_total": valor_total_nota if valor_total_nota > 0 else None,
+                            "nf_url": path_para_salvar
                         }
                         
                         response_compra = supabase.table("compras").insert(nova_compra_dados).execute()
                         
                         if not response_compra.data:
                             st.error(f"Erro ao criar registro de compra: {response_compra.error.message}")
+                            st.warning("VERIFIQUE se o nome da coluna 'loja_id' está correto no seu banco.")
                             st.stop()
                         
                         nova_compra_id = response_compra.data[0]['id']
@@ -202,7 +232,7 @@ try:
                                 "status_id": status_id,
                                 "estado_id": estado_id,
                                 "local_id": local_id,
-                                "valor_unitario": valor_unit,
+                                "valor": valor_unit, 
                                 "compra_id": nova_compra_id
                             })
                         
@@ -214,6 +244,7 @@ try:
                             st.rerun()
                         else:
                             st.error(f"Erro ao cadastrar os ativos: {response_ativos.error.message}")
+                            st.warning(f"VERIFIQUE se o nome da coluna 'valor_unitario' está correto no seu banco.")
                             st.warning(f"Atenção: O registro da Compra (ID: {nova_compra_id}) foi criado, mas os ativos falharam.")
                             
                     except Exception as e:

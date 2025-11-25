@@ -24,70 +24,26 @@ def carregar_opcoes():
     
     return modelos, categorias, setores, status, estados
 
-def carregar_ativos():
+def carregar_dados_completos():
+    """Carrega os ativos e todas as tabelas relacionadas para tradução."""
     try:
-        response = supabase.table("ativos").select(
-            """
-            id,
-            serial,
-            status:status_id(nome),
-            estados:estado_id(nome),
-            modelos(nome, marcas(nome), categorias(nome)),
-            setores(nome)
-            """
-        ).execute()
-
-        print("DEBUG: Resposta do Supabase:", response)
-        return response.data
-    
+        # 1. Carregar a tabela principal de ativos
+        ativos = supabase.table("ativos").select("*").execute().data
+        
+        # 2. Carregar tabelas de "lookup"
+        # Precisamos de modelos com suas marcas para o nome formatado
+        modelos = supabase.table("modelos").select("id, nome, categoria_id, marcas(nome)").order("nome").execute().data
+        categorias = supabase.table("categorias").select("id, nome").order("nome").execute().data
+        usuarios = supabase.table("usuarios").select("id, nome").order("nome").execute().data
+        setores = supabase.table("setores").select("id, nome").order("nome").execute().data
+        status = supabase.table("status").select("id, nome").order("nome").execute().data
+        estados = supabase.table("estados").select("id, nome").order("nome").execute().data
+        
+        return ativos, modelos, categorias, usuarios, setores, status, estados
+        
     except Exception as e:
-        st.error(f"Erro ao carregar dados: {e}")
-        print(f"Erro detalhado da API: {e}")
-        return []
-
-def processar_dados(dados_brutos):
-    """Transforma os dados brutos do Supabase em um DataFrame limpo."""
-    if not dados_brutos:
-
-        return pd.DataFrame()
-
-    # Converte a lista de dicionários em um DataFrame do Pandas
-    df = pd.DataFrame(dados_brutos)
-
-    # 1. Achatar colunas simples (ex: {'nome': 'Em Uso'} -> 'Em Uso')
-    # O .get('nome') é seguro e retorna None se a chave 'nome' não existir
-    df['status'] = df['status'].apply(lambda x: x.get('nome') if isinstance(x, dict) else x)
-    df['estados'] = df['estados'].apply(lambda x: x.get('nome') if isinstance(x, dict) else x)
-    df['setores'] = df['setores'].apply(lambda x: x.get('nome') if isinstance(x, dict) else x)
-
-    # 2. Achatar coluna complexa 'modelos'
-    df['modelo'] = df['modelos'].apply(lambda x: x.get('nome') if isinstance(x, dict) else None)
-    
-    # .get('marcas', {}) retorna um dict vazio se 'marcas' não existir, evitando erros
-    df['marca'] = df['modelos'].apply(lambda x: x.get('marcas', {}).get('nome') if isinstance(x, dict) else None)
-    df['categoria'] = df['modelos'].apply(lambda x: x.get('categorias', {}).get('nome') if isinstance(x, dict) else None)
-
-    # 3. Limpar, reordenar e renomear colunas
-    
-    # Remover a coluna 'modelos' original, que continha o objeto
-    df = df.drop(columns=['modelos'])
-    
-    # Definir a ordem e os nomes que queremos exibir
-    colunas_finais = {
-        'id': 'ID',
-        'serial': 'Serial',
-        'modelo': 'Modelo',
-        'marca': 'Marca',
-        'categoria': 'Categoria',
-        'status': 'Status',
-        'estados': 'Estado',
-        'setores': 'Setor'
-    }
-    
-    # Filtra o DataFrame para ter apenas as colunas desejadas e as renomeia
-    df_limpo = df[colunas_finais.keys()].rename(columns=colunas_finais)
-
-    return df_limpo
+        st.error(f"Erro fatal ao carregar dados: {e}")
+        return [], [], [], [], [], [], []
 
 with tab_cadastro:
     try:
@@ -173,12 +129,186 @@ with tab_cadastro:
         st.error(f"Não foi possível carregar as opções de cadastro: {e}")
 
 with tab_lista:
-    st.subheader("Lista de Ativos Cadastrados")
+    try:
+        # Carrega todos os dados
+        ativos_data, modelos_data, categorias_data, usuarios_data, setores_data, status_data, estados_data = carregar_dados_completos()
 
-    dados_brutos = carregar_ativos()
-    df_ativos = processar_dados(dados_brutos)
+        if not all([modelos_data, categorias_data, usuarios_data, setores_data, status_data, estados_data]):
+            st.warning("Faltam dados cadastrais (modelos, usuários, etc.). Verifique o 'Cadastro Geral'.")
+            st.stop()
 
-    if df_ativos.empty:
-        st.info("Nenhum ativo cadastrado encontrado.")
-    else:
-        st.data_editor(df_ativos, num_rows="dynamic", height="stretch", width="stretch")
+        # --- 1. Criar os Mapas de "Tradução" ---
+
+        # Mapas de NOME -> ID
+        categorias_map = {c['nome']: c['id'] for c in categorias_data}
+        usuarios_map = {u['nome']: u['id'] for u in usuarios_data}
+        setores_map = {s['nome']: s['id'] for s in setores_data} # Ativos.local_id -> Setores.id
+        status_map = {s['nome']: s['id'] for s in status_data}
+        estados_map = {e['nome']: e['id'] for e in estados_data}
+
+        # Mapas de ID -> NOME
+        usuarios_map_inv = {u['id']: u['nome'] for u in usuarios_data}
+        setores_map_inv = {s['id']: s['nome'] for s in setores_data}
+        status_map_inv = {s['id']: s['nome'] for s in status_data}
+        estados_map_inv = {e['id']: e['nome'] for e in estados_data}
+
+        # Mapas de Modelos (são especiais, pois incluem a marca)
+        modelos_map = {} # "Marca - Modelo" -> ID
+        modelos_map_inv = {} # ID -> "Marca - Modelo"
+        modelos_por_categoria = {} # {categoria_id: [lista_de_modelos_data]}
+
+        for m in modelos_data:
+            marca_nome = m.get('marcas', {}).get('nome', 'Sem Marca')
+            display_name = f"{marca_nome} - {m['nome']}"
+            modelos_map[display_name] = m['id']
+            modelos_map_inv[m['id']] = display_name
+
+            cat_id = m.get('categoria_id')
+            if cat_id not in modelos_por_categoria:
+                modelos_por_categoria[cat_id] = []
+            modelos_por_categoria[cat_id].append(m)
+
+        # Listas de Nomes para os Selectboxes do Editor
+        lista_nomes_modelos = list(modelos_map.keys())
+        lista_nomes_usuarios = list(usuarios_map.keys())
+        lista_nomes_setores = list(setores_map.keys())
+        lista_nomes_status = list(status_map.keys())
+        lista_nomes_estados = list(estados_map.keys())
+
+    except Exception as e:
+        st.error(f"Erro ao processar dados: {e}")
+        st.stop()
+
+    # --- 2. Filtro de Categoria (Obrigatório para performance) ---
+    st.subheader("Filtrar Ativos por Categoria")
+    categoria_filtro_nome = st.selectbox(
+        "Selecione uma categoria para listar e editar os ativos",
+        options=categorias_map.keys(),
+        index=None,
+        placeholder="Selecione uma categoria..."
+    )
+
+    if categoria_filtro_nome:
+        categoria_filtro_id = categorias_map[categoria_filtro_nome]
+
+        # Filtra os modelos que pertencem a esta categoria
+        modelos_nesta_categoria_ids = [m['id'] for m in modelos_por_categoria.get(categoria_filtro_id, [])]
+
+        # Filtra os ativos que pertencem a esses modelos
+        ativos_filtrados = [a for a in ativos_data if a.get('modelo_id') in modelos_nesta_categoria_ids]
+
+        if not ativos_filtrados:
+            st.info(f"Nenhum ativo encontrado para a categoria '{categoria_filtro_nome}'.")
+        else:
+            # --- 3. "Traduzir" o DataFrame para exibição ---
+            df_ativos = pd.DataFrame(ativos_filtrados)
+
+            # Cria as colunas com nomes legíveis
+            df_display = pd.DataFrame()
+            df_display['id'] = df_ativos['id']
+            df_display['serial'] = df_ativos['serial']
+            df_display['modelo'] = df_ativos['modelo_id'].map(modelos_map_inv)
+            df_display['status'] = df_ativos['status_id'].map(status_map_inv)
+            df_display['usuario'] = df_ativos['usuario_id'].map(usuarios_map_inv)
+            df_display['local'] = df_ativos['local_id'].map(setores_map_inv)
+            df_display['estado'] = df_ativos['estado_id'].map(estados_map_inv)
+            df_display['valor'] = df_ativos['valor']
+            df_display['compra_id'] = df_ativos['compra_id'] # Para referência
+
+            # Lista de modelos *apenas* desta categoria (para o dropdown não mostrar todos)
+            lista_nomes_modelos_filtrada = [modelos_map_inv[m_id] for m_id in modelos_nesta_categoria_ids if m_id in modelos_map_inv]
+
+
+            # --- 4. O Data Editor ---
+            with st.form("form_edit_ativos"):
+                st.subheader(f"Editando Ativos: {categoria_filtro_nome}")
+                st.info("Edite os campos abaixo. Use os menus para alterar o status, usuário, local, etc.")
+
+                edited_df = st.data_editor(
+                    df_display,
+                    key="editor_ativos",
+                    use_container_width=True,
+                    hide_index=True,
+                    num_rows="fixed", # Impede adicionar/deletar por aqui
+                    disabled=["id", "compra_id"], # Campos não-editáveis
+                    column_config={
+                        # --- Colunas Editáveis ---
+                        "serial": st.column_config.TextColumn("Serial", required=True),
+                        "valor": st.column_config.NumberColumn(
+                            "Valor (R$)", format="R$ %.2f"
+                        ),
+                        "modelo": st.column_config.SelectboxColumn(
+                            "Modelo",
+                            options=lista_nomes_modelos_filtrada, # Mostra só modelos da categoria
+                            required=True
+                        ),
+                        "status": st.column_config.SelectboxColumn(
+                            "Status",
+                            options=lista_nomes_status,
+                            required=True
+                        ),
+                        "usuario": st.column_config.SelectboxColumn(
+                            "Usuário",
+                            options=lista_nomes_usuarios,
+                            # Permite "Nenhum" (ativo em estoque)
+                            required=False 
+                        ),
+                        "local": st.column_config.SelectboxColumn(
+                            "Local (Setor)",
+                            options=lista_nomes_setores,
+                            required=True
+                        ),
+                        "estado": st.column_config.SelectboxColumn(
+                            "Condição (Estado)",
+                            options=lista_nomes_estados,
+                            required=True
+                        ),
+
+                        # --- Colunas Não-Editáveis (informativas) ---
+                        "id": st.column_config.NumberColumn("ID"),
+                        "compra_id": st.column_config.NumberColumn("ID da Compra"),
+                    }
+                )
+
+                submit_button = st.form_submit_button("Salvar Alterações")
+
+            # --- 5. Lógica de Salvamento ---
+            if submit_button:
+                with st.spinner("Salvando alterações..."):
+                    updates_count = 0
+                    errors = []
+
+                    # Itera sobre o DataFrame editado
+                    for index, row in edited_df.iterrows():
+                        item_id = int(row["id"])
+
+                        # Encontra a linha original
+                        original_row = df_display[df_display['id'] == item_id].iloc[0]
+
+                        # Verifica se a linha mudou
+                        if not row.equals(original_row):
+                            try:
+                                # "Traduz de volta" Nomes para IDs
+                                updates = {
+                                    "serial": row["serial"],
+                                    "valor": row["valor"],
+                                    "modelo_id": modelos_map.get(row["modelo"]),
+                                    "status_id": status_map.get(row["status"]),
+                                    "usuario_id": usuarios_map.get(row["usuario"]), # .get() retorna None se "Nenhum"
+                                    "local_id": setores_map.get(row["local"]),
+                                    "estado_id": estados_map.get(row["estado"])
+                                }
+
+                                supabase.table("ativos").update(updates).eq("id", item_id).execute()
+                                updates_count += 1
+                            except Exception as e:
+                                errors.append(f"ID {item_id}: {e}")
+
+                    if updates_count > 0:
+                        st.success(f"{updates_count} ativo(s) atualizado(s) com sucesso!")
+                        st.cache_data.clear() # Limpa o cache para carregar dados novos
+                        st.rerun()
+                    elif errors:
+                        st.error(f"Erros ao salvar: {errors}")
+                    else:
+                        st.info("Nenhuma alteração detectada.")
