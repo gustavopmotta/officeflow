@@ -8,7 +8,7 @@ import datetime
 st.set_page_config(page_title="Registrar Compra", layout="wide")
 
 # --- Conexão com Supabase ---
-@st.cache_resource
+@st.cache_resource(ttl=600)
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
@@ -17,7 +17,7 @@ def init_connection():
 supabase: Client = init_connection()
 
 # --- Funções para Carregar Dados Auxiliares ---
-@st.cache_data # Adicionado cache para performance
+@st.cache_data(ttl=600) # Adicionado cache para performance
 def carregar_opcoes():
     """Busca dados das tabelas auxiliares para preencher os selectbox."""
     modelos = supabase.table("modelos").select("id, nome, categoria_id, marcas(nome)").order("nome").execute().data

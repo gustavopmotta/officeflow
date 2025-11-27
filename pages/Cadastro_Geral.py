@@ -3,7 +3,7 @@ from supabase import create_client, Client
 import pandas as pd
 
 # --- Conexão com Supabase ---
-@st.cache_resource
+@st.cache_resource(ttl=600)
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
@@ -12,7 +12,7 @@ def init_connection():
 supabase: Client = init_connection()
 
 # --- Função de Carregamento ---
-@st.cache_data
+@st.cache_data(ttl=600)
 def carregar_opcoes_modelo():
     marcas = supabase.table("marcas").select("id, nome").execute().data
     categorias = supabase.table("categorias").select("id, nome").execute().data
@@ -153,8 +153,7 @@ with tab_cadastro:
                 try:
                     response = supabase.table("lojas").insert({"nome": nome_loja}).execute()
                     if response.data:
-                        st.cache_data.clear() # Limpa o cache para atualizar o form de modelos
-                        st.rerun()  # Recarrega a página para atualizar os dados
+                        st.cache_data.clear()
                     else:
                         st.error(f"Erro ao salvar: {response.error.message}")
                 except Exception as e:
@@ -169,37 +168,20 @@ with tab_cadastro:
         st.subheader("Cadastrar Novo Usuário")
 
         with st.form("form_usuario", clear_on_submit=True):
-            col_1, col_2 = st.columns(2)
-            
-            with col_1:
-                nome_usuario = st.text_input("Nome do Usuário")
-
-            with col_2:
-                setor_selecionado = st.selectbox(
-                    "Setor *", 
-                    options=lista_nomes_setores, 
-                    key="novo_usuario_setor",
-                    index=None, # Força o usuário a escolher
-                    placeholder="Selecione um setor..."
-                )
+            nome_usuario = st.text_input("Nome do Usuário")
             
             if st.form_submit_button("Salvar Usuário"):
                     # Validação
                     if not nome_usuario:
                         st.error("O campo 'Nome do Usuário' é obrigatório.")
-                    elif not setor_selecionado:
-                        st.error("O campo 'Setor' é obrigatório (NOT NULLABLE).")
                     else:
                         # Traduz o nome do setor para setor_id
-                        setor_id_para_salvar = setores_map[setor_selecionado]
-                        
                         novo_usuario_dados = {
                             "nome": nome_usuario,
-                            "setor_id": setor_id_para_salvar # Salva o ID
                         }
                         supabase.table("usuarios").insert(novo_usuario_dados).execute()
                         st.success(f"Usuário '{nome_usuario}' cadastrado!")
-                        st.cache_data.clear(); st.rerun()
+                        st.cache_data.clear()
 
 # --- Gerenciamento ---
 with tab_geral:

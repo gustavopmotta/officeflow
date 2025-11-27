@@ -2,7 +2,7 @@ import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
 
-@st.cache_resource
+@st.cache_resource(ttl=600)
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
@@ -130,7 +130,6 @@ with tab_cadastro:
 
 with tab_lista:
     try:
-        # Carrega todos os dados
         ativos_data, modelos_data, categorias_data, usuarios_data, setores_data, status_data, estados_data = carregar_dados_completos()
 
         if not all([modelos_data, categorias_data, usuarios_data, setores_data, status_data, estados_data]):
@@ -138,37 +137,30 @@ with tab_lista:
             st.stop()
 
         # --- 1. Criar os Mapas de "Tradução" ---
-
-        # Mapas de NOME -> ID
         categorias_map = {c['nome']: c['id'] for c in categorias_data}
         usuarios_map = {u['nome']: u['id'] for u in usuarios_data}
-        setores_map = {s['nome']: s['id'] for s in setores_data} # Ativos.local_id -> Setores.id
+        setores_map = {s['nome']: s['id'] for s in setores_data}
         status_map = {s['nome']: s['id'] for s in status_data}
         estados_map = {e['nome']: e['id'] for e in estados_data}
-
-        # Mapas de ID -> NOME
         usuarios_map_inv = {u['id']: u['nome'] for u in usuarios_data}
         setores_map_inv = {s['id']: s['nome'] for s in setores_data}
         status_map_inv = {s['id']: s['nome'] for s in status_data}
         estados_map_inv = {e['id']: e['nome'] for e in estados_data}
 
-        # Mapas de Modelos (são especiais, pois incluem a marca)
-        modelos_map = {} # "Marca - Modelo" -> ID
-        modelos_map_inv = {} # ID -> "Marca - Modelo"
-        modelos_por_categoria = {} # {categoria_id: [lista_de_modelos_data]}
+        modelos_map = {}
+        modelos_map_inv = {}
+        modelos_por_categoria = {}
 
         for m in modelos_data:
             marca_nome = m.get('marcas', {}).get('nome', 'Sem Marca')
             display_name = f"{marca_nome} - {m['nome']}"
             modelos_map[display_name] = m['id']
             modelos_map_inv[m['id']] = display_name
-
             cat_id = m.get('categoria_id')
             if cat_id not in modelos_por_categoria:
                 modelos_por_categoria[cat_id] = []
             modelos_por_categoria[cat_id].append(m)
 
-        # Listas de Nomes para os Selectboxes do Editor
         lista_nomes_modelos = list(modelos_map.keys())
         lista_nomes_usuarios = list(usuarios_map.keys())
         lista_nomes_setores = list(setores_map.keys())
@@ -179,136 +171,126 @@ with tab_lista:
         st.error(f"Erro ao processar dados: {e}")
         st.stop()
 
-    # --- 2. Filtro de Categoria (Obrigatório para performance) ---
+    # --- 2. Filtro de Categoria (OPCIONAL) ---
     st.subheader("Filtrar Ativos por Categoria")
+    
+    opcoes_filtro = ["Todas as Categorias"] + list(categorias_map.keys())
     categoria_filtro_nome = st.selectbox(
-        "Selecione uma categoria para listar e editar os ativos",
-        options=categorias_map.keys(),
-        index=None,
-        placeholder="Selecione uma categoria..."
+        "Selecione uma categoria para filtrar a lista",
+        options=opcoes_filtro,
+        index=0  # "Todas as Categorias" é o padrão
     )
 
-    if categoria_filtro_nome:
+    # --- 3. Lógica de Filtragem ---
+    ativos_filtrados = []
+    lista_nomes_modelos_filtrada = lista_nomes_modelos 
+
+    if categoria_filtro_nome and categoria_filtro_nome != "Todas as Categorias":
         categoria_filtro_id = categorias_map[categoria_filtro_nome]
-
-        # Filtra os modelos que pertencem a esta categoria
         modelos_nesta_categoria_ids = [m['id'] for m in modelos_por_categoria.get(categoria_filtro_id, [])]
-
-        # Filtra os ativos que pertencem a esses modelos
         ativos_filtrados = [a for a in ativos_data if a.get('modelo_id') in modelos_nesta_categoria_ids]
+        lista_nomes_modelos_filtrada = [modelos_map_inv[m_id] for m_id in modelos_nesta_categoria_ids if m_id in modelos_map_inv]
+    else:
+        ativos_filtrados = ativos_data
 
-        if not ativos_filtrados:
-            st.info(f"Nenhum ativo encontrado para a categoria '{categoria_filtro_nome}'.")
-        else:
-            # --- 3. "Traduzir" o DataFrame para exibição ---
-            df_ativos = pd.DataFrame(ativos_filtrados)
+    # --- 4. Exibição da Tabela ---
+    if not ativos_filtrados:
+        st.info(f"Nenhum ativo encontrado.")
+    else:
+        df_ativos = pd.DataFrame(ativos_filtrados)
+        df_display = pd.DataFrame()
+        df_display['id'] = df_ativos['id']
+        df_display['serial'] = df_ativos['serial']
+        df_display['modelo'] = df_ativos['modelo_id'].map(modelos_map_inv)
+        df_display['status'] = df_ativos['status_id'].map(status_map_inv)
+        df_display['usuario'] = df_ativos['usuario_id'].map(usuarios_map_inv)
+        df_display['local'] = df_ativos['local_id'].map(setores_map_inv)
+        df_display['estado'] = df_ativos['estado_id'].map(estados_map_inv)
+        
+        # --- ATUALIZADO: 'valor_unitario' -> 'valor' ---
+        df_display['valor'] = df_ativos['valor'] 
+        
+        df_display['compra_id'] = df_ativos['compra_id'] 
 
-            # Cria as colunas com nomes legíveis
-            df_display = pd.DataFrame()
-            df_display['id'] = df_ativos['id']
-            df_display['serial'] = df_ativos['serial']
-            df_display['modelo'] = df_ativos['modelo_id'].map(modelos_map_inv)
-            df_display['status'] = df_ativos['status_id'].map(status_map_inv)
-            df_display['usuario'] = df_ativos['usuario_id'].map(usuarios_map_inv)
-            df_display['local'] = df_ativos['local_id'].map(setores_map_inv)
-            df_display['estado'] = df_ativos['estado_id'].map(estados_map_inv)
-            df_display['valor'] = df_ativos['valor']
-            df_display['compra_id'] = df_ativos['compra_id'] # Para referência
+        # --- O Data Editor ---
+        with st.form("form_edit_ativos"):
+            st.subheader(f"Editando Ativos: {categoria_filtro_nome}")
 
-            # Lista de modelos *apenas* desta categoria (para o dropdown não mostrar todos)
-            lista_nomes_modelos_filtrada = [modelos_map_inv[m_id] for m_id in modelos_nesta_categoria_ids if m_id in modelos_map_inv]
+            edited_df = st.data_editor(
+                df_display,
+                key="editor_ativos",
+                use_container_width=True,
+                hide_index=True,
+                num_rows="fixed",
+                disabled=["id", "compra_id"], 
+                column_config={
+                    "serial": st.column_config.TextColumn("Serial", required=True),
+                    
+                    "valor": st.column_config.NumberColumn(
+                        "Valor (R$)", format="R$ %.2f"
+                    ),
+                    
+                    "modelo": st.column_config.SelectboxColumn(
+                        "Modelo",
+                        options=lista_nomes_modelos_filtrada,
+                        required=True
+                    ),
 
+                    "status": st.column_config.SelectboxColumn(
+                        "Status", options=lista_nomes_status, required=True
+                    ),
 
-            # --- 4. O Data Editor ---
-            with st.form("form_edit_ativos"):
-                st.subheader(f"Editando Ativos: {categoria_filtro_nome}")
-                st.info("Edite os campos abaixo. Use os menus para alterar o status, usuário, local, etc.")
+                    "usuario": st.column_config.SelectboxColumn(
+                        "Usuário", options=lista_nomes_usuarios, required=False 
+                    ),
 
-                edited_df = st.data_editor(
-                    df_display,
-                    key="editor_ativos",
-                    use_container_width=True,
-                    hide_index=True,
-                    num_rows="fixed", # Impede adicionar/deletar por aqui
-                    disabled=["id", "compra_id"], # Campos não-editáveis
-                    column_config={
-                        # --- Colunas Editáveis ---
-                        "serial": st.column_config.TextColumn("Serial", required=True),
-                        "valor": st.column_config.NumberColumn(
-                            "Valor (R$)", format="R$ %.2f"
-                        ),
-                        "modelo": st.column_config.SelectboxColumn(
-                            "Modelo",
-                            options=lista_nomes_modelos_filtrada, # Mostra só modelos da categoria
-                            required=True
-                        ),
-                        "status": st.column_config.SelectboxColumn(
-                            "Status",
-                            options=lista_nomes_status,
-                            required=True
-                        ),
-                        "usuario": st.column_config.SelectboxColumn(
-                            "Usuário",
-                            options=lista_nomes_usuarios,
-                            # Permite "Nenhum" (ativo em estoque)
-                            required=False 
-                        ),
-                        "local": st.column_config.SelectboxColumn(
-                            "Local (Setor)",
-                            options=lista_nomes_setores,
-                            required=True
-                        ),
-                        "estado": st.column_config.SelectboxColumn(
-                            "Condição (Estado)",
-                            options=lista_nomes_estados,
-                            required=True
-                        ),
+                    "local": st.column_config.SelectboxColumn(
+                        "Local (Setor)", options=lista_nomes_setores, required=True
+                    ),
 
-                        # --- Colunas Não-Editáveis (informativas) ---
-                        "id": st.column_config.NumberColumn("ID"),
-                        "compra_id": st.column_config.NumberColumn("ID da Compra"),
-                    }
-                )
+                    "estado": st.column_config.SelectboxColumn(
+                        "Condição (Estado)", options=lista_nomes_estados, required=True
+                    ),
 
-                submit_button = st.form_submit_button("Salvar Alterações")
+                    "id": st.column_config.NumberColumn("ID"),
+                    "compra_id": st.column_config.NumberColumn("ID da Compra"),
+                }
+            )
 
-            # --- 5. Lógica de Salvamento ---
-            if submit_button:
-                with st.spinner("Salvando alterações..."):
-                    updates_count = 0
-                    errors = []
+            submit_button = st.form_submit_button("Salvar Alterações")
 
-                    # Itera sobre o DataFrame editado
-                    for index, row in edited_df.iterrows():
-                        item_id = int(row["id"])
+        # --- 5. Lógica de Salvamento ---
+        if submit_button:
+            with st.spinner("Salvando alterações..."):
+                updates_count = 0
+                errors = []
 
-                        # Encontra a linha original
-                        original_row = df_display[df_display['id'] == item_id].iloc[0]
+                for index, row in edited_df.iterrows():
+                    item_id = int(row["id"])
+                    original_row = df_display[df_display['id'] == item_id].iloc[0]
 
-                        # Verifica se a linha mudou
-                        if not row.equals(original_row):
-                            try:
-                                # "Traduz de volta" Nomes para IDs
-                                updates = {
-                                    "serial": row["serial"],
-                                    "valor": row["valor"],
-                                    "modelo_id": modelos_map.get(row["modelo"]),
-                                    "status_id": status_map.get(row["status"]),
-                                    "usuario_id": usuarios_map.get(row["usuario"]), # .get() retorna None se "Nenhum"
-                                    "local_id": setores_map.get(row["local"]),
-                                    "estado_id": estados_map.get(row["estado"])
-                                }
+                    if not row.equals(original_row):
+                        try:
+                            updates = {
+                                "serial": row["serial"],
+                                "valor": row["valor"],
+                                "modelo_id": modelos_map.get(row["modelo"]),
+                                "status_id": status_map.get(row["status"]),
+                                "usuario_id": usuarios_map.get(row["usuario"]), 
+                                "local_id": setores_map.get(row["local"]),
+                                "estado_id": estados_map.get(row["estado"])
+                            }
 
-                                supabase.table("ativos").update(updates).eq("id", item_id).execute()
-                                updates_count += 1
-                            except Exception as e:
-                                errors.append(f"ID {item_id}: {e}")
+                            supabase.table("ativos").update(updates).eq("id", item_id).execute()
+                            updates_count += 1
+                        except Exception as e:
+                            errors.append(f"ID {item_id}: {e}")
 
-                    if updates_count > 0:
-                        st.success(f"{updates_count} ativo(s) atualizado(s) com sucesso!")
-                        st.cache_data.clear() # Limpa o cache para carregar dados novos
-                        st.rerun()
-                    elif errors:
-                        st.error(f"Erros ao salvar: {errors}")
-                    else:
-                        st.info("Nenhuma alteração detectada.")
+                if updates_count > 0:
+                    st.success(f"{updates_count} ativo(s) atualizado(s) com sucesso!")
+                    st.cache_data.clear() 
+                    st.rerun()
+                elif errors:
+                    st.error(f"Erros ao salvar: {errors}")
+                else:
+                    st.info("Nenhuma alteração detectada.")
