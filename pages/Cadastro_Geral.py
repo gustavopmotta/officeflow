@@ -492,7 +492,7 @@ with tab_geral:
                             required=True
                         )
                     },
-                    num_rows="dynamic", # Permite adicionar/deletar
+                    num_rows="fixed", # Permite adicionar/deletar
                     width="stretch",
                     hide_index=True,
                 )

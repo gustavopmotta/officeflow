@@ -178,7 +178,7 @@ with tab_lista:
     categoria_filtro_nome = st.selectbox(
         "Selecione uma categoria para filtrar a lista",
         options=opcoes_filtro,
-        index=0  # "Todas as Categorias" é o padrão
+        index=0
     )
 
     # --- 3. Lógica de Filtragem ---
@@ -206,10 +206,7 @@ with tab_lista:
         df_display['usuario'] = df_ativos['usuario_id'].map(usuarios_map_inv)
         df_display['local'] = df_ativos['local_id'].map(setores_map_inv)
         df_display['estado'] = df_ativos['estado_id'].map(estados_map_inv)
-        
-        # --- ATUALIZADO: 'valor_unitario' -> 'valor' ---
         df_display['valor'] = df_ativos['valor'] 
-        
         df_display['compra_id'] = df_ativos['compra_id'] 
 
         # --- O Data Editor ---
@@ -217,7 +214,7 @@ with tab_lista:
             st.subheader(f"Editando Ativos: {categoria_filtro_nome}")
 
             edited_df = st.data_editor(
-                df_display,
+                df_display, width="stretch", height="stretch",
                 key="editor_ativos",
                 use_container_width=True,
                 hide_index=True,
@@ -245,15 +242,15 @@ with tab_lista:
                     ),
 
                     "local": st.column_config.SelectboxColumn(
-                        "Local (Setor)", options=lista_nomes_setores, required=True
+                        "Local", options=lista_nomes_setores, required=True
                     ),
 
                     "estado": st.column_config.SelectboxColumn(
-                        "Condição (Estado)", options=lista_nomes_estados, required=True
+                        "Condição", options=lista_nomes_estados, required=True
                     ),
 
                     "id": st.column_config.NumberColumn("ID"),
-                    "compra_id": st.column_config.NumberColumn("ID da Compra"),
+                    "compra_id": None,
                 }
             )
 
