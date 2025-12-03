@@ -216,7 +216,6 @@ with tab_lista:
             edited_df = st.data_editor(
                 df_display, width="stretch", height="stretch",
                 key="editor_ativos",
-                use_container_width=True,
                 hide_index=True,
                 num_rows="fixed",
                 disabled=["id", "compra_id"], 
