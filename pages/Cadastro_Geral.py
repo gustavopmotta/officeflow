@@ -1,6 +1,11 @@
-import streamlit as st
 from supabase import create_client, Client
+from utils import sidebar_global
+import streamlit as st
 import pandas as pd
+
+# --- Configuração da Pagina ---
+st.set_page_config(page_title="Cadastro Geral", layout="wide")
+sidebar_global()
 
 # --- Conexão com Supabase ---
 @st.cache_resource(ttl=600)
@@ -21,7 +26,6 @@ def carregar_opcoes_modelo():
 # --- Título da Página ---
 st.title("Cadastro Geral")
 st.info("Utilize esta página para gerenciar os itens que aparecem nos menus suspensos do cadastro de ativos.")
-st.set_page_config(page_title="Cadastro Geral", layout="wide")
 
 # --- Carregar Dados para o Formulário de Modelos ---
 try:

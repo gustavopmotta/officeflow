@@ -1,4 +1,5 @@
 from supabase import create_client, Client
+from utils import sidebar_global
 import streamlit as st
 import pandas as pd
 
@@ -80,6 +81,8 @@ def processar_dados(dados_brutos):
     return df_limpo
 
 st.set_page_config(page_title="Dashboard",layout="wide")
+sidebar_global()
+
 st.title("Dashboard de Ativos")
 
 ativos_data = carregar_ativos()

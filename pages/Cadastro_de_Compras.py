@@ -1,11 +1,13 @@
-import streamlit as st
 from supabase import create_client, Client
+from utils import sidebar_global
+import streamlit as st
 import pandas as pd
 import random
 import datetime
 
-# --- Configuração da Página (DEVE SER O 1º COMANDO) ---
+# --- Configuração da Página ---
 st.set_page_config(page_title="Registrar Compra", layout="wide")
+sidebar_global()
 
 # --- Conexão com Supabase ---
 @st.cache_resource(ttl=600)

@@ -1,9 +1,11 @@
-import streamlit as st
 from supabase import create_client, Client
+from utils import sidebar_global
+import streamlit as st
 import pandas as pd
 
 # --- Configuração da Página ---
 st.set_page_config(page_title="Movimentações", layout="wide")
+sidebar_global()
 
 # --- Conexão com Supabase ---
 @st.cache_resource(ttl=600)

@@ -1,7 +1,13 @@
-import streamlit as st
 from supabase import create_client, Client
+from utils import sidebar_global
+import streamlit as st
 import pandas as pd
 
+# --- Configuração da Página ---
+st.set_page_config(page_title="Gerenciar Ativos", layout="wide")
+sidebar_global()
+
+# --- Configuração do Supabase ---
 @st.cache_resource(ttl=600)
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
@@ -10,9 +16,10 @@ def init_connection():
 
 supabase: Client = init_connection()
 
+# --- Página ---
 st.title("Gerenciar Ativos")
-st.set_page_config(page_title="Gerenciar Ativos", layout="wide")
 
+# --- Criação de Abas
 tab_lista, tab_cadastro = st.tabs(["Lista de Ativos", "Cadastrar Novo Ativo"])
 
 def carregar_opcoes():
@@ -45,6 +52,7 @@ def carregar_dados_completos():
         st.error(f"Erro fatal ao carregar dados: {e}")
         return [], [], [], [], [], [], []
 
+# --- ABA 01: Cadastro ---
 with tab_cadastro:
     try:
         modelos, categorias, setores, status, estados = carregar_opcoes()
@@ -128,6 +136,7 @@ with tab_cadastro:
     except Exception as e:
         st.error(f"Não foi possível carregar as opções de cadastro: {e}")
 
+# --- ABA 02: Lista ---
 with tab_lista:
     try:
         ativos_data, modelos_data, categorias_data, usuarios_data, setores_data, status_data, estados_data = carregar_dados_completos()
