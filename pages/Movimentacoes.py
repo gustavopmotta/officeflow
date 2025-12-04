@@ -1,11 +1,6 @@
-from supabase import create_client, Client
-from utils import sidebar_global
+from utils import sidebar_global, verificar_autenticacao
 import streamlit as st
 import pandas as pd
-
-# --- Configuração da Página ---
-st.set_page_config(page_title="Movimentações", layout="wide")
-sidebar_global()
 
 # --- Conexão com Supabase ---
 @st.cache_resource(ttl=600)
@@ -14,7 +9,11 @@ def init_connection():
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
 
-supabase: Client = init_connection()
+supabase = verificar_autenticacao()
+
+# --- Configuração da Página ---
+st.set_page_config(page_title="Movimentações", layout="wide")
+sidebar_global()
 
 # --- Carregar Dados Auxiliares ---
 @st.cache_data(ttl=600)

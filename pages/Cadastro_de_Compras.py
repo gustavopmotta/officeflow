@@ -1,5 +1,4 @@
-from supabase import create_client, Client
-from utils import sidebar_global
+from utils import sidebar_global, verificar_autenticacao
 import streamlit as st
 import pandas as pd
 import random
@@ -16,7 +15,7 @@ def init_connection():
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
 
-supabase: Client = init_connection()
+supabase = verificar_autenticacao()
 
 # --- Funções para Carregar Dados Auxiliares ---
 @st.cache_data(ttl=600) # Adicionado cache para performance

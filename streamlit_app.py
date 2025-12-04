@@ -1,20 +1,23 @@
-from supabase import create_client, Client
-from utils import sidebar_global
+from utils import sidebar_global, verificar_autenticacao
 import streamlit as st
 import pandas as pd
 
-st.title("OFFICEFLOW")
-st.write(
-    "Gerenciador de ativos de TI para pequenas e médias empresas."
-)
-
-@st.cache_resource
+# --- Conexão com Supabase ---
+@st.cache_resource(ttl=600)
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
 
-supabase: Client = init_connection()
+supabase = verificar_autenticacao()
+
+st.set_page_config(page_title="Dashboard",layout="wide")
+sidebar_global()
+
+st.title("OFFICEFLOW")
+st.write(
+    "Gerenciador de ativos de TI para pequenas e médias empresas."
+)
 
 def carregar_ativos():
     try:
@@ -79,16 +82,3 @@ def processar_dados(dados_brutos):
     df_limpo = df[colunas_finais.keys()].rename(columns=colunas_finais)
 
     return df_limpo
-
-st.set_page_config(page_title="Dashboard",layout="wide")
-sidebar_global()
-
-st.title("Dashboard de Ativos")
-
-ativos_data = carregar_ativos()
-
-if ativos_data:
-    df_processado = processar_dados(ativos_data)
-    st.dataframe(df_processado, width="stretch")
-else:
-    st.info("Nenhum ativo cadastrado.")
