@@ -4,18 +4,12 @@ import pandas as pd
 import random
 import datetime
 
+# --- Conexão com Supabase ---
+supabase = verificar_autenticacao()
+
 # --- Configuração da Página ---
 st.set_page_config(page_title="Registrar Compra", layout="wide")
 sidebar_global()
-
-# --- Conexão com Supabase ---
-@st.cache_resource(ttl=600)
-def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
-
-supabase = verificar_autenticacao()
 
 # --- Funções para Carregar Dados Auxiliares ---
 @st.cache_data(ttl=600) # Adicionado cache para performance

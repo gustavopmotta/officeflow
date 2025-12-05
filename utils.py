@@ -1,17 +1,21 @@
-import streamlit as st
 from supabase import create_client, Client
+import streamlit as st
+import bcrypt
 import time
 
 # --- 1. Centralizando a Conexão ---
-# Movemos o init_connection para cá para reutilizar em todo lugar
-@st.cache_resource
+@st.cache_resource()
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
 
 def verificar_autenticacao():
-    client = init_connection()
+    try:
+        client = init_connection()
+    except Exception as e:
+        st.error(f"Erro de conexão com Supabase: {e}")
+        st.stop()
 
     # Verifica se existe sessão
     if "user" not in st.session_state:
@@ -19,36 +23,56 @@ def verificar_autenticacao():
 
     # Se não estiver logado, mostra tela de login
     if st.session_state.user is None:
-        
+        st.set_page_config(layout="centered")
+        # Esconder barra lateral
+        st.markdown(
+            """
+            <style>
+                [data-testid="stSidebar"] {display: none;}
+                [data-testid="stSidebarCollapsedControl"] {display: none;}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
         # Layout da tela de login
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            st.markdown("## 🔒 OfficeFlow Login")
-            st.info("Acesso restrito a administradores.")
+            st.title("OFFICEFLOW")
+            st.header("Login")
             
-            email = st.text_input("Email")
-            password = st.text_input("Senha", type="password")
+            with st.form("login_form", clear_on_submit=False):
+                email = st.text_input("Email")
+                password = st.text_input("Senha", type="password")
+                
+                submitted = st.form_submit_button("Entrar", use_container_width=True)
             
-            entrar = st.button("Entrar no Sistema", use_container_width=True)
-
-            if entrar:
-                try:
-                    # Tenta fazer login no Supabase Auth
-                    auth_response = client.auth.sign_in_with_password({
-                        "email": email,
-                        "password": password
-                    })
+            if submitted:
+                # 1. Busca o usuário pelo email na tabela customizada
+                response = client.table("user_sistema").select("*").eq("email", email).execute()
+                
+                usuario_encontrado = response.data
+                
+                if not usuario_encontrado:
+                    st.error("Usuário não encontrado.")
+                else:
+                    user_data = usuario_encontrado[0]
+                    stored_hash = user_data["senha_hash"]
                     
-                    # Se der certo, salva o usuário na sessão
-                    st.session_state.user = auth_response.user
-                    st.success("Login realizado com sucesso!")
-                    time.sleep(1)
-                    st.rerun() # Recarrega a página para entrar no app
-                    
-                except Exception as e:
-                    st.error("Email ou senha incorretos.")
+                    # 2. Verifica a senha usando bcrypt
+                    if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
+                        st.session_state.user = {
+                            "email": user_data["email"],
+                            "nome": user_data["nome"],
+                            "id": user_data["id"],
+                        }
+                        st.success(f"Bem-vindo, {user_data['nome']}!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("Senha incorreta.")
         
-        # COMANDO CRUCIAL: Para a execução aqui se não estiver logado
+        # Para a execução aqui se não estiver logado
         st.stop()
     
     return client # Retorna o cliente para ser usado nas páginas
@@ -56,9 +80,12 @@ def verificar_autenticacao():
 # --- Barra lateral Global do Site ---
 def sidebar_global():
     with st.sidebar:
-        st.markdown("### OfficeFlow")
-        st.caption("Sistema de Gestão de Ativos")
+        st.markdown("### OFFICEFLOW")
         
-        st.divider()
+        if st.session_state.user:
+            nome = st.session_state.user.get("nome", st.session_state.user.get("email"))
+            st.write(f"Usuário: **{nome}**")
         
-        st.markdown("Desenvolvido pela TI")
+            if st.button("Sair"):
+                st.session_state.user = None
+                st.rerun()
