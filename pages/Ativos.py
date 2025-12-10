@@ -27,11 +27,7 @@ def carregar_opcoes():
 def carregar_dados_completos():
     """Carrega os ativos e todas as tabelas relacionadas para tradução."""
     try:
-        # 1. Carregar a tabela principal de ativos
         ativos = supabase.table("ativos").select("*").execute().data
-        
-        # 2. Carregar tabelas de "lookup"
-        # Precisamos de modelos com suas marcas para o nome formatado
         modelos = supabase.table("modelos").select("id, nome, categoria_id, marcas(nome)").order("nome").execute().data
         categorias = supabase.table("categorias").select("id, nome").order("nome").execute().data
         usuarios = supabase.table("usuarios").select("id, nome").order("nome").execute().data
@@ -50,10 +46,6 @@ with tab_cadastro:
     try:
         modelos, categorias, setores, status, estados = carregar_opcoes()
 
-        # --- Criar Mapeamentos ---
-        # Precisamos de um dicionário (map) para converter o NOME selecionado
-        # de volta para o ID que será salvo no banco.
-        # Ex: 'Notebook Dell' -> 14
         categorias_map = {c['nome']: c['id'] for c in categorias}
         setores_map = {s['nome']: s['id'] for s in setores}
         status_map = {s['nome']: s['id'] for s in status}
@@ -107,7 +99,6 @@ with tab_cadastro:
                     try:
                         novo_ativo = {
                             "serial": serial_input,
-                            # 7. Modificado: Usamos o mapa filtrado para obter o ID
                             "modelo_id": modelos_filtrados_map[modelo_selecionado], 
                             "local_id": setores_map[setor_selecionado],
                             "status_id": status_map[status_selecionado],

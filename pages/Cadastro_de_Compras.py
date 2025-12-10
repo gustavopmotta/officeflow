@@ -101,7 +101,7 @@ try:
                 st.error(f"Erro ao gerar seriais: {e}")
 
         st.button(
-            "Gerar Seriais Sugeridos",
+            "Gerar Seriais",
             on_click=gerar_seriais_callback,
             help="Preenche os campos de serial abaixo."
         )

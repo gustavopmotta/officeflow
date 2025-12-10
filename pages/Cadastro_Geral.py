@@ -465,7 +465,6 @@ with tab_geral:
                         # Lógica para saber se é um update ou insert
                         # (O 'num_rows="dynamic"' permite criar novos, que vêm com id=NaN)
                         if pd.isna(item_id):
-                            # É um item NOVO
                             supabase.table("modelos").insert(dados_para_salvar).execute()
                             updates_count += 1
                         else:
