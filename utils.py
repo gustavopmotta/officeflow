@@ -20,7 +20,7 @@ def verificar_autenticacao():
     # Verifica se existe sessão
     if "user" not in st.session_state:
         st.session_state.user = None
-
+        
     # Se não estiver logado, mostra tela de login
     if st.session_state.user is None:
         st.set_page_config(layout="centered")
@@ -39,9 +39,9 @@ def verificar_autenticacao():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.title("OFFICEFLOW")
-            st.header("Login")
             
             with st.form("login_form", clear_on_submit=False):
+                st.header("Login")
                 email = st.text_input("Email")
                 password = st.text_input("Senha", type="password")
                 

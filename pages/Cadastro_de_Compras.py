@@ -12,7 +12,6 @@ st.set_page_config(page_title="Registrar Compra", layout="wide")
 sidebar_global()
 
 # --- Funções para Carregar Dados Auxiliares ---
-@st.cache_data(ttl=600) # Adicionado cache para performance
 def carregar_opcoes():
     """Busca dados das tabelas auxiliares para preencher os selectbox."""
     modelos = supabase.table("modelos").select("id, nome, categoria_id, marcas(nome)").order("nome").execute().data

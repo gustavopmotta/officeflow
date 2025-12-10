@@ -10,7 +10,6 @@ st.set_page_config(page_title="Cadastro Geral", layout="wide")
 sidebar_global()
 
 # --- Função de Carregamento ---
-@st.cache_data(ttl=600)
 def carregar_opcoes_modelo():
     marcas = supabase.table("marcas").select("id, nome").execute().data
     categorias = supabase.table("categorias").select("id, nome").execute().data
@@ -329,91 +328,45 @@ with tab_geral:
                 else:
                     st.info("Nenhuma alteração detectada em Setores.")
 
-    colger_lojas, colger_usuarios = st.columns(2)
-
     # --- 4. SEÇÃO LOJAS ---
-    with colger_lojas:
-        with st.expander("Gerenciar Lojas", expanded=True):
-            @st.cache_data
-            def carregar_lojas():
-                data = supabase.table("lojas").select("id, nome").order("nome").execute().data
-                return pd.DataFrame(data)
+    with st.expander("Gerenciar Lojas", expanded=True):
+        @st.cache_data
+        def carregar_lojas():
+            data = supabase.table("lojas").select("id, nome").order("nome").execute().data
+            return pd.DataFrame(data)
+        
+        try:
+            df_lojas = carregar_lojas()
+        except Exception as e:
+            st.error(f"Erro ao carregar lojas: {e}")
+            st.stop()
+        with st.form("form_edit_lojas"): # form_edit_lojas
+            st.write("Editar Lojas:")
+            edited_df_lojas = st.data_editor( # edited_df_lojas
+                df_lojas, key="editor_lojas", num_rows="fixed",
+                disabled=["id"], width="stretch"
+            )
+            submit_edit_lojas = st.form_submit_button("Salvar Alterações de Lojas")
+        if submit_edit_lojas:
+            updates_count = 0
+            for index, row in edited_df_lojas.iterrows():
+                original_row = df_lojas.iloc[index]
+                if not row.equals(original_row):
+                    item_id = row["id"]
+                    updates = row.to_dict(); del updates["id"]
+                    try:
+                        supabase.table("lojas").update(updates).eq("id", item_id).execute()
+                        updates_count += 1
+                    except Exception as e:
+                        st.error(f"Erro ao atualizar loja ID {item_id}: {e}")
             
-            try:
-                df_lojas = carregar_lojas()
-            except Exception as e:
-                st.error(f"Erro ao carregar lojas: {e}")
-                st.stop()
+            if updates_count > 0:
+                st.success(f"{updates_count} loja(s) atualizada(s)!")
+                st.cache_data.clear()
+            else:
+                st.info("Nenhuma alteração detectada em Lojas.")
 
-            with st.form("form_edit_lojas"): # form_edit_lojas
-                st.write("Editar Lojas:")
-                edited_df_lojas = st.data_editor( # edited_df_lojas
-                    df_lojas, key="editor_lojas", num_rows="fixed",
-                    disabled=["id"], width="stretch"
-                )
-                submit_edit_lojas = st.form_submit_button("Salvar Alterações de Lojas")
-
-            if submit_edit_lojas:
-                updates_count = 0
-                for index, row in edited_df_lojas.iterrows():
-                    original_row = df_lojas.iloc[index]
-                    if not row.equals(original_row):
-                        item_id = row["id"]
-                        updates = row.to_dict(); del updates["id"]
-                        try:
-                            supabase.table("lojas").update(updates).eq("id", item_id).execute()
-                            updates_count += 1
-                        except Exception as e:
-                            st.error(f"Erro ao atualizar loja ID {item_id}: {e}")
-                
-                if updates_count > 0:
-                    st.success(f"{updates_count} loja(s) atualizada(s)!")
-                    st.cache_data.clear()
-                else:
-                    st.info("Nenhuma alteração detectada em Lojas.")
-
-    # --- 5. SEÇÃO USUARIOS ---
-    with colger_usuarios:
-        with st.expander("Gerenciar Usuários", expanded=True):
-            @st.cache_data
-            def carregar_usuarios():
-                data = supabase.table("usuarios").select("id, nome").order("nome").execute().data
-                return pd.DataFrame(data)
-            
-            try:
-                df_usuarios = carregar_usuarios()
-            except Exception as e:
-                st.error(f"Erro ao carregar usuários: {e}")
-                st.stop()
-
-            with st.form("form_edit_usuarios"):
-                st.write("Editar Usuários:")
-                edited_df_usuarios = st.data_editor(
-                    df_usuarios, key="editor_usuarios", num_rows="fixed",
-                    disabled=["id"], width="stretch"
-                )
-                submit_edit_usuarios = st.form_submit_button("Salvar Alterações de Usuários")
-
-            if submit_edit_usuarios:
-                updates_count = 0
-                for index, row in edited_df_usuarios.iterrows():
-                    original_row = df_usuarios.iloc[index]
-                    if not row.equals(original_row):
-                        item_id = row["id"]
-                        updates = row.to_dict(); del updates["id"]
-                        try:
-                            supabase.table("usuarios").update(updates).eq("id", item_id).execute()
-                            updates_count += 1
-                        except Exception as e:
-                            st.error(f"Erro ao atualizar usuario ID {item_id}: {e}")
-                
-                if updates_count > 0:
-                    st.success(f"{updates_count} usuario(s) atualizada(s)!")
-                    st.cache_data.clear()
-                else:
-                    st.info("Nenhuma alteração detectada em usuarios.")
-
-    # --- 6. SEÇÃO MODELOS ---
+    # --- 5. SEÇÃO MODELOS ---
     with st.expander("Gerenciar Modelos", expanded=False):
         # --- 4a. Carregar Todos os Dados de Modelos ---
         @st.cache_data

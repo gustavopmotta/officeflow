@@ -10,7 +10,6 @@ st.set_page_config(page_title="Movimentações", layout="wide")
 sidebar_global()
 
 # --- Carregar Dados Auxiliares ---
-@st.cache_data(ttl=600)
 def carregar_dados_auxiliares():
     try:
         ativos = supabase.table("ativos").select("id, serial, usuario_id, local_id, status_id").execute().data
