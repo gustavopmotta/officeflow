@@ -16,15 +16,20 @@ st.title("Gestão de Usuários")
 cadastro_tab, gerenciar_tab = st.tabs(["Cadastrar / Editar", "Gerenciar"])
 
 # --- Identificação de Dados ---
-usuarios = supabase.table("usuarios").select("id, nome, email, setor_id").order("nome").execute().data
-setores = supabase.table("setores").select("id, nome").order("nome").execute().data
+ativos_data = supabase.table("ativos").select("*").execute().data
+usuarios_data = supabase.table("usuarios").select("id, nome, email, setor_id").order("nome").execute().data
+setores_data = supabase.table("setores").select("id, nome").order("nome").execute().data
+status_data = supabase.table("status").select("id", "nome").order("nome").execute().data
 
 # Mapeamento Nome -> ID (Para salvar)
-setores_map = {s['nome']: s['id'] for s in setores}
+setores_map = {s['nome']: s['id'] for s in setores_data}
+status_map = {s['nome']: s['id'] for s in status_data}
+
 nome_setores = list(setores_map.keys())
+nome_status = list(status_map.keys())
 
 # Mapeamento ID -> Nome (Para exibir na tabela)
-id_to_nome_map = {s['id']: s['nome'] for s in setores}
+id_to_nome_map = {s['id']: s['nome'] for s in setores_data}
 
 # --- ABA 01: Cadastro/Edição de Usuário ---
 with cadastro_tab:
@@ -53,7 +58,7 @@ with cadastro_tab:
 
     # --- Gerenciamento de Usuário ---
     try:
-        df_users = pd.DataFrame(usuarios)
+        df_users = pd.DataFrame(usuarios_data)
 
         # CORREÇÃO 1: Traduzir os IDs para Nomes ANTES de criar o editor
         # Se houver um ID no banco que não tem nome correspondente, preenchemos com vazio para não dar erro
@@ -132,14 +137,14 @@ with cadastro_tab:
 
 # --- ABA 02: Gerenciamento de Usuários ---
 with gerenciar_tab:
+    # --- Mapeamento de Dados
+    usuarios_map = {u["nome"]: u["id"] for u in usuarios_data}
+
     # --- Inicio da Aba ---
     st.info("Selecione um usuário para gerenciar")
     
     # --- Criação de Colunas
     col1, col2 = st.columns(2, width="stretch", vertical_alignment="top")
-
-    # --- Mapeamento de Dados
-    usuarios_map = {u["nome"]: u["id"] for u in usuarios}
     
     # --- Coluna da Esquerda ---
     with col1:
@@ -147,3 +152,37 @@ with gerenciar_tab:
             "Usuário",
             options=usuarios_map.keys()
             )
+
+        id_usuario_alvo = usuarios_map[usuario_selecionado]
+    
+        ativos_filtrados = []
+        for ativo in ativos_data:
+            raw_uid = ativo.get("usuario_id")
+
+            if isinstance(raw_uid, dict):
+                uid_ativo = raw_uid.get("id")
+            else:
+                uid_ativo = raw_uid
+
+            if uid_ativo == id_usuario_alvo:
+                ativos_filtrados.append(ativo)
+
+        if ativos_filtrados:
+            # Preparando dados para exibição bonita (sem IDs soltos)
+            df_display = []
+
+            for a in ativos_filtrados:
+                # Tratamento seguro para Marca e Modelo (igual fizemos antes)
+                dados_modelo = a.get('modelos') if isinstance(a.get('modelos'), dict) else {}
+                dados_marca = dados_modelo.get('marcas') if isinstance(dados_modelo.get('marcas'), dict) else {}
+
+                df_display.append({
+                    "Serial": a.get('serial'),
+                    "Marca": dados_marca.get('nome', 'S/M'),
+                    "Modelo": dados_modelo.get('nome', 'S/M'),
+                    "Status": status_map_inv.get(a.get('status_id') if not isinstance(a.get('status_id'), dict) else a.get('status_id').get('id'), "N/A")
+                })
+
+                st.dataframe(pd.DataFrame(df_display), layout="stretch")
+            else:
+                st.info("Nenhum ativo encontrado para este usuário.")

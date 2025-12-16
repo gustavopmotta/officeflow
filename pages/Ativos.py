@@ -76,8 +76,6 @@ with tab_cadastro:
 
             st.subheader("2. Informações do Ativo")   
             with st.form("form_cadastro_ativo", clear_on_submit=True):
-
-
                 # --- Inputs do Formulário ---
                 serial_input = st.text_input("Serial Number (ou Patrimônio)", key="serial")
 
