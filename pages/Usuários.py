@@ -16,7 +16,7 @@ st.title("Gestão de Usuários")
 cadastro_tab, gerenciar_tab = st.tabs(["Cadastrar / Editar", "Gerenciar"])
 
 # --- Identificação de Dados ---
-ativos_data = supabase.table("ativos").select("*").execute().data
+ativos_data = supabase.table("ativos").select("*, modelos(nome, marcas(nome)), status(nome)").execute().data
 usuarios_data = supabase.table("usuarios").select("id, nome, email, setor_id").order("nome").execute().data
 setores_data = supabase.table("setores").select("id, nome").order("nome").execute().data
 status_data = supabase.table("status").select("id", "nome").order("nome").execute().data
@@ -141,7 +141,7 @@ with gerenciar_tab:
     usuarios_map = {u["nome"]: u["id"] for u in usuarios_data}
 
     # --- Inicio da Aba ---
-    st.info("Selecione um usuário para gerenciar")
+    st.subheader("1. Selecione um usuário para gerenciar")
     
     # --- Criação de Colunas
     col1, col2 = st.columns(2, width="stretch", vertical_alignment="top")
@@ -175,14 +175,16 @@ with gerenciar_tab:
                 # Tratamento seguro para Marca e Modelo (igual fizemos antes)
                 dados_modelo = a.get('modelos') if isinstance(a.get('modelos'), dict) else {}
                 dados_marca = dados_modelo.get('marcas') if isinstance(dados_modelo.get('marcas'), dict) else {}
+                dados_status = a.get('status') if isinstance(a.get('status'), dict) else {}
 
                 df_display.append({
                     "Serial": a.get('serial'),
                     "Marca": dados_marca.get('nome', 'S/M'),
                     "Modelo": dados_modelo.get('nome', 'S/M'),
-                    "Status": status_map_inv.get(a.get('status_id') if not isinstance(a.get('status_id'), dict) else a.get('status_id').get('id'), "N/A")
+                    "Status": dados_status.get('nome', 'S/M')
                 })
 
-                st.dataframe(pd.DataFrame(df_display), layout="stretch")
-            else:
-                st.info("Nenhum ativo encontrado para este usuário.")
+                st.subheader("Ativos:")
+                st.dataframe(pd.DataFrame(df_display), width="stretch")
+        else:
+            st.info("Nenhum ativo encontrado para este usuário.")

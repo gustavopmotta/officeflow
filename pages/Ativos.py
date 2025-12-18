@@ -224,19 +224,19 @@ with tab_lista:
                     ),
 
                     "status": st.column_config.SelectboxColumn(
-                        "Status", options=lista_nomes_status, required=True
+                        "Status", options=lista_nomes_status, required=True, disabled=True
                     ),
 
                     "usuario": st.column_config.SelectboxColumn(
-                        "Usuário", options=lista_nomes_usuarios, required=False 
+                        "Usuário", options=lista_nomes_usuarios, required=False, disabled=True
                     ),
 
                     "local": st.column_config.SelectboxColumn(
-                        "Local", options=lista_nomes_setores, required=True
+                        "Local", options=lista_nomes_setores, required=True, disabled=True
                     ),
 
                     "estado": st.column_config.SelectboxColumn(
-                        "Condição", options=lista_nomes_estados, required=True
+                        "Condição", options=lista_nomes_estados, required=True, disabled=True
                     ),
 
                     "id": st.column_config.NumberColumn("ID"),
