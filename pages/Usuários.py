@@ -142,17 +142,17 @@ with gerenciar_tab:
 
     # --- Inicio da Aba ---
     st.subheader("1. Selecione um usuário para gerenciar")
+
+    usuario_selecionado = st.selectbox(
+        "Usuário",
+        options=usuarios_map.keys()
+        )
     
     # --- Criação de Colunas
     col1, col2 = st.columns(2, width="stretch", vertical_alignment="top")
     
-    # --- Coluna da Esquerda ---
+    # --- COLUNA 1.1: Ativos Usados ---
     with col1:
-        usuario_selecionado = st.selectbox(
-            "Usuário",
-            options=usuarios_map.keys()
-            )
-
         id_usuario_alvo = usuarios_map[usuario_selecionado]
     
         ativos_filtrados = []
@@ -185,6 +185,48 @@ with gerenciar_tab:
                 })
 
                 st.subheader("Ativos:")
-                st.dataframe(pd.DataFrame(df_display), width="stretch")
+                st.dataframe(pd.DataFrame(df_display), width="stretch", hide_index=True)
         else:
             st.info("Nenhum ativo encontrado para este usuário.")
+
+    # --- COLUNA 1.2: Histórico de Movimentações ---
+    with col2:
+        id_usuario_alvo = usuarios_map[usuario_selecionado]
+
+        try:
+            response = supabase.table("movimentacoes").select(
+                "created_at, observacao, ativos(serial, modelos(nome, marcas(nome))), setores(nome), status(nome)"
+            ).eq("usuario_id", id_usuario_alvo).order("created_at", desc=True).execute()
+
+            movimentacoes_list = response.data
+
+            if movimentacoes_list:
+                df_display = []
+
+                for mov in movimentacoes_list:
+                    dados_ativo = mov.get('ativos') or {}
+
+                    dados_modelo = dados_ativo.get('modelos') or {}
+                    dados_marca = dados_modelo.get('marcas') or {}
+
+                    dados_setor = mov.get('setores') or {}
+                    dados_status = mov.get('status') or {}
+
+                    df_display.append({
+                        "Data": pd.to_datetime(mov['created_at']).strftime('%d/%m/%Y %H:%M'),
+                        "Serial": dados_ativo.get('serial', 'S/M'),
+                        "Marca": dados_marca.get('nome', '-'),
+                        "Modelo": dados_modelo.get('nome', '-'),
+                        "Novo Setor": dados_setor.get('nome', '-'),
+                        "Novo Status": dados_status.get('nome', '-'),
+                        "Obs": mov.get('observacao')
+                    })
+
+                st.subheader(f"Histórico de: {usuario_selecionado}")
+                st.dataframe(pd.DataFrame(df_display), width="stretch", hide_index=True)
+
+            else:
+                st.info(f"Nenhum registro de movimentação encontrado para {usuario_selecionado}.")
+
+        except Exception as e:
+            st.error(f"Erro ao buscar histórico: {e}")
