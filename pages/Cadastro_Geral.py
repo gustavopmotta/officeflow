@@ -135,147 +135,10 @@ with tab_cadastro:
 # --- Gerenciamento ---
 with tab_geral:
     st.header("Visualizar e Editar Cadastros Gerais")
-    st.info("Aqui você pode visualizar e editar os nomes de Marcas e Categorias existentes.")
+    st.info("Aqui você pode visualizar e editar os nomes de Marcas, Categorias, Lojas e Modelos.")
 
-    ger_marcas, ger_categorias, ger_lojas, ger_modelos = st.tabs(["Marcas","Categorias","Lojas","Modelos"])
-
-    # --- 1. SEÇÃO MARCAS ---
-    with ger_marcas:
-        # --- 1a. Carregar Marcas ---
-        @st.cache_data
-        def carregar_marcas():
-            data = supabase.table("marcas").select("id, nome").order("nome").execute().data
-            return pd.DataFrame(data)
-        
-        try:
-            df_marcas = carregar_marcas()
-        except Exception as e:
-            st.error(f"Erro ao carregar marcas: {e}")
-            st.stop()
-
-        # --- 1b. Editar Marcas (Data Editor) ---
-        with st.form("form_edit_marcas"):
-            st.write("Visualizar e Editar Marcas:")
-            edited_df_marcas = st.data_editor(
-                df_marcas,
-                key="editor_marcas", # Chave única
-                num_rows="fixed",
-                disabled=["id"],
-                width="stretch"
-            )
-            submit_edit_marcas = st.form_submit_button("Salvar Alterações de Marcas")
-
-        if submit_edit_marcas:
-            updates_count = 0
-
-            for index, row in edited_df_marcas.iterrows():
-                original_row = df_marcas.iloc[index]
-
-                if not row.equals(original_row):
-                    item_id = row["id"]
-                    updates = row.to_dict(); del updates["id"]
-
-                    try:
-                        supabase.table("marcas").update(updates).eq("id", item_id).execute()
-                        updates_count += 1
-                    except Exception as e:
-                        st.error(f"Erro ao atualizar marca ID {item_id}: {e}")
-
-            if updates_count > 0:
-                st.success(f"{updates_count} marca(s) atualizada(s)!")
-                st.cache_data.clear()
-            else:
-                st.info("Nenhuma alteração detectada em Marcas.")
-
-    # --- 2. SEÇÃO CATEGORIAS ---
-    with ger_categorias:
-        # --- 2a. Carregar Categorias ---
-        @st.cache_data
-        def carregar_categorias():
-            data = supabase.table("categorias").select("id, nome").order("nome").execute().data
-            return pd.DataFrame(data)
-        
-        try:
-            df_categorias = carregar_categorias()
-        except Exception as e:
-            st.error(f"Erro ao carregar categorias: {e}")
-            st.stop()
-
-        # --- 2b. Editar Categorias (Data Editor) ---
-        with st.form("form_edit_categorias"):
-            st.write("Visualizar e Editar Categorias:")
-            edited_df_cats = st.data_editor(
-                df_categorias,
-                key="editor_categorias", # Chave única
-                num_rows="fixed",
-                disabled=["id"],
-                width="stretch"
-            )
-            submit_edit_cats = st.form_submit_button("Salvar Alterações de Categorias")
-        if submit_edit_cats:
-            updates_count = 0
-
-            for index, row in edited_df_cats.iterrows():
-                original_row = df_categorias.iloc[index]
-
-                if not row.equals(original_row):
-                    item_id = row["id"]
-                    updates = row.to_dict(); del updates["id"]
-
-                    try:
-                        supabase.table("categorias").update(updates).eq("id", item_id).execute()
-                        updates_count += 1
-                    except Exception as e:
-                        st.error(f"Erro ao atualizar categoria ID {item_id}: {e}")
-
-            if updates_count > 0:
-                st.success(f"{updates_count} categoria(s) atualizada(s)!")
-                st.cache_data.clear()
-            else:
-                st.info("Nenhuma alteração detectada em Categorias.")
-
-    # --- 3. SEÇÃO LOJAS ---
-    with ger_lojas:
-        @st.cache_data
-        def carregar_lojas():
-            data = supabase.table("lojas").select("id, nome").order("nome").execute().data
-            return pd.DataFrame(data)
-        
-        try:
-            df_lojas = carregar_lojas()
-        except Exception as e:
-            st.error(f"Erro ao carregar lojas: {e}")
-            st.stop()
-
-        with st.form("form_edit_lojas"): # form_edit_lojas
-            st.write("Editar Lojas:")
-            edited_df_lojas = st.data_editor( # edited_df_lojas
-                df_lojas, key="editor_lojas", num_rows="fixed",
-                disabled=["id"], width="stretch"
-            )
-            submit_edit_lojas = st.form_submit_button("Salvar Alterações de Lojas")
-
-        if submit_edit_lojas:
-            updates_count = 0
-
-            for index, row in edited_df_lojas.iterrows():
-                original_row = df_lojas.iloc[index]
-
-                if not row.equals(original_row):
-                    item_id = row["id"]
-                    updates = row.to_dict(); del updates["id"]
-
-                    try:
-                        supabase.table("lojas").update(updates).eq("id", item_id).execute()
-                        updates_count += 1
-                    except Exception as e:
-                        st.error(f"Erro ao atualizar loja ID {item_id}: {e}")
-            
-            if updates_count > 0:
-                st.success(f"{updates_count} loja(s) atualizada(s)!")
-                st.cache_data.clear()
-            else:
-                st.info("Nenhuma alteração detectada em Lojas.")
+    # Nova estrutura: Modelos separados, e o resto unificado
+    ger_modelos, ger_basicos = st.tabs(["Modelos", "Cadastros Básicos"])
 
     # --- 4. SEÇÃO MODELOS ---
     with ger_modelos:
@@ -391,3 +254,112 @@ with tab_geral:
                 except Exception as e:
                     st.error(f"Erro ao salvar: {e}")
                     st.info("Verifique se algum campo obrigatório (Marca, Categoria) ficou vazio.")
+
+    # --- ABA UNIFICADA: Cadastros Básicos ---
+    with ger_basicos:
+        
+        # Carregamento local dos dados para edição
+        try:
+            # Reutiliza marcas_data e categorias_data já carregados acima
+            df_marcas = pd.DataFrame(marcas_data)
+            df_categorias = pd.DataFrame(categorias_data)
+            
+            # Carrega lojas
+            lojas_data = supabase.table("lojas").select("id, nome").order("nome").execute().data
+            df_lojas = pd.DataFrame(lojas_data)
+        except Exception as e:
+            st.error(f"Erro ao carregar dados básicos: {e}")
+            st.stop()
+
+        with st.form("form_edit_basicos_unificado"):
+            st.write("Edite Marcas, Categorias e Lojas:")
+            
+            # Colunas para os Data Editors
+            col_a, col_b, col_c = st.columns(3)
+
+            # --- 1. SEÇÃO MARCAS ---
+            with col_a:
+                st.markdown("###### Marcas")
+                # --- 1b. Editar Marcas (Data Editor) ---
+                edited_df_marcas = st.data_editor(
+                    df_marcas,
+                    key="editor_marcas",
+                    num_rows="fixed",
+                    column_config={
+                         "id": None,
+                         "nome": st.column_config.TextColumn("Nome", required=True)
+                    },
+                    hide_index=True,
+                    width="stretch"
+                )
+
+            # --- 2. SEÇÃO CATEGORIAS ---
+            with col_b:
+                st.markdown("###### Categorias")
+                # --- 2b. Editar Categorias (Data Editor) ---
+                edited_df_cats = st.data_editor(
+                    df_categorias,
+                    key="editor_categorias",
+                    num_rows="fixed",
+                    column_config={
+                         "id": None,
+                         "nome": st.column_config.TextColumn("Nome", required=True)
+                    },
+                    hide_index=True,
+                    width="stretch"
+                )
+
+            # --- 3. SEÇÃO LOJAS ---
+            with col_c:
+                st.markdown("###### Lojas")
+                edited_df_lojas = st.data_editor(
+                    df_lojas, 
+                    key="editor_lojas", 
+                    num_rows="fixed",
+                    column_config={
+                         "id": None,
+                         "nome": st.column_config.TextColumn("Nome", required=True)
+                    },
+                    hide_index=True,
+                    width="stretch"
+                )
+
+            st.divider()
+            submit_edit_all = st.form_submit_button("Salvar Todas as Alterações")
+
+        if submit_edit_all:
+            total_updates = 0
+            
+            # Salvar Marcas
+            try:
+                for index, row in edited_df_marcas.iterrows():
+                    original_row = df_marcas.iloc[index]
+                    if not row.equals(original_row):
+                        supabase.table("marcas").update({"nome": row['nome']}).eq("id", row['id']).execute()
+                        total_updates += 1
+            except Exception as e: st.error(f"Erro ao salvar Marcas: {e}")
+
+            # Salvar Categorias
+            try:
+                for index, row in edited_df_cats.iterrows():
+                    original_row = df_categorias.iloc[index]
+                    if not row.equals(original_row):
+                        supabase.table("categorias").update({"nome": row['nome']}).eq("id", row['id']).execute()
+                        total_updates += 1
+            except Exception as e: st.error(f"Erro ao salvar Categorias: {e}")
+
+            # Salvar Lojas
+            try:
+                for index, row in edited_df_lojas.iterrows():
+                    original_row = df_lojas.iloc[index]
+                    if not row.equals(original_row):
+                        supabase.table("lojas").update({"nome": row['nome']}).eq("id", row['id']).execute()
+                        total_updates += 1
+            except Exception as e: st.error(f"Erro ao salvar Lojas: {e}")
+
+            if total_updates > 0:
+                st.success(f"{total_updates} registros atualizados com sucesso!")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.info("Nenhuma alteração detectada.")

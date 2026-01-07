@@ -25,8 +25,7 @@ def carregar_opcoes():
 
 def carregar_historico_compras():
     try:
-        # Busca compras trazendo o nome da loja associada
-        response = supabase.table("compras").select("*, lojas(nome)").order("data_compra", desc=True).limit(50).execute()
+        response = supabase.table("compras").select("*, lojas(nome), modelos(nome)").order("data_compra", desc=True).limit(50).execute()
         dados = response.data
         
         lista_processada = []
@@ -49,13 +48,17 @@ def carregar_historico_compras():
                     except Exception as e:
                         print(f"Erro ao gerar URL: {e}")
 
-                # Dados da Loja (join)
-                nome_loja = compra['lojas']['nome'] if compra.get('lojas') else "N/A"
+                # Dados da Loja e Modelo (joins seguros)
+                nome_loja = compra.get('lojas', {}).get('nome', 'N/A') if compra.get('lojas') else "N/A"
+                
+                # AJUSTE 2: Pegando o nome do modelo do objeto retornado pelo join
+                nome_modelo = compra.get('modelos', {}).get('nome', '-') if compra.get('modelos') else "-"
 
                 lista_processada.append({
                     "ID": compra["id"],
                     "Data": pd.to_datetime(compra["data_compra"]).strftime('%d/%m/%Y'),
                     "NF": compra["nota_fiscal"],
+                    "Modelo": nome_modelo,
                     "Loja": nome_loja,
                     "Valor Total": compra["valor_total"],
                     "Comprovante": url_pdf
@@ -227,7 +230,6 @@ with tab_cadastro:
                             path_para_salvar = None
                             if uploaded_pdf is not None:
                                 pdf_bytes = uploaded_pdf.getvalue()
-                                # Salva o PDF no Bucket "NFs"
                                 file_path_in_storage = f"public/nf-{nf.strip()}.pdf"
                                 try:
                                     supabase.storage.from_("NFs").upload(
@@ -241,11 +243,15 @@ with tab_cadastro:
 
                             # --- ETAPA 1: INSERIR A COMPRA ---
                             loja_id_para_salvar = lojas_map[loja]
+                            # Recupera o ID do modelo selecionado no selectbox lá de cima
+                            modelo_id_para_salvar = modelos_map[st.session_state.compra_modelo]
                             
                             nova_compra_dados = {
                                 "data_compra": data_compra.isoformat(),
                                 "nota_fiscal": nf,
-                                "loja_id": loja_id_para_salvar, 
+                                "loja_id": loja_id_para_salvar,
+                                # AJUSTE 3: Salvando o modelo comprado na tabela de compras
+                                "modelo_comprado_id": modelo_id_para_salvar, 
                                 "valor_total": valor_total_nota if valor_total_nota > 0 else None,
                                 "nf_url": path_para_salvar
                             }
@@ -259,7 +265,7 @@ with tab_cadastro:
                             nova_compra_id = response_compra.data[0]['id']
                             
                             # --- ETAPA 2: PREPARAR OS ATIVOS ---
-                            modelo_id = modelos_map[st.session_state.compra_modelo]
+                            # Usa o mesmo modelo ID
                             status_id = status_map[status_selecionado]
                             estado_id = estados_map[estado_selecionado]
                             local_id = setores_map[setor_selecionado]
@@ -269,7 +275,7 @@ with tab_cadastro:
                             for serial in seriais_input:
                                 novos_ativos_lista.append({
                                     "serial": serial.strip(),
-                                    "modelo_id": modelo_id,
+                                    "modelo_id": modelo_id_para_salvar,
                                     "status_id": status_id,
                                     "estado_id": estado_id,
                                     "local_id": local_id,
@@ -281,7 +287,7 @@ with tab_cadastro:
                             response_ativos = supabase.table("ativos").insert(novos_ativos_lista).execute()
 
                             if response_ativos.data:
-                                st.success(f"Compra {nf} e {len(response_ativos.data)} ativo(s) cadastrados com sucesso!")
+                                st.success(f"Compra {nf} cadastrada com sucesso!")
                                 st.rerun()
                             else:
                                 st.error(f"Erro ao cadastrar os ativos: {response_ativos.error.message}")
@@ -307,6 +313,7 @@ with tab_historico:
             width="stretch",
             hide_index=True,
             column_config={
+                "ID": None,
                 "Valor Total": st.column_config.NumberColumn(format="R$ %.2f"),
                 "Comprovante": st.column_config.LinkColumn(
                     "Nota Fiscal",
