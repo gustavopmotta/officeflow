@@ -1,18 +1,20 @@
-from utils import sidebar_global, verificar_autenticacao
+from utils import verificar_autenticacao
 import streamlit as st
 import pandas as pd
 
 # --- Conexão com Supabase ---
 supabase = verificar_autenticacao()
 
-# --- Configuração da Página ---
-st.set_page_config(page_title="Movimentações", layout="wide")
-sidebar_global()
-
 # --- Carregar Dados Auxiliares ---
 def carregar_dados_auxiliares():
     try:
-        ativos = supabase.table("ativos").select("id, serial, usuario_id, local_id, status_id(nome), modelo_id(nome, marca_id(nome))").order("status_id").execute().data
+        query = """
+            id, serial, usuario_id, local_id, status_id,
+            status_dados:status_id(nome),
+            modelo_id(nome, marca_id(nome))
+        """
+        ativos = supabase.table("ativos").select(query).order("id").execute().data
+        
         usuarios = supabase.table("usuarios").select("id, nome").order("nome").execute().data
         setores = supabase.table("setores").select("id, nome").order("nome").execute().data 
         status = supabase.table("status").select("id, nome").order("nome").execute().data
@@ -25,31 +27,28 @@ def carregar_dados_auxiliares():
 # --- Carrega os dados ---
 ativos_data, usuarios_data, setores_data, status_data = carregar_dados_auxiliares()
 
-# --- Formatação do nome
+# --- Formatação do nome (Criação do Label) ---
 ativos_map = {}
 for a in ativos_data:
-    # Valores padrão caso algo venha vazio
     nome_modelo = "Modelo Desconhecido"
     nome_marca = "Marca Desconhecida"
     nome_status = "Status Desconhecido"
     
-    # 1. Acessa o objeto "modelos"
+    # 1. Dados de Modelo e Marca
     dados_modelo = a.get("modelo_id")
-    dados_status = a.get("status_id")
-    
-    # Verifica se existe um modelo vinculado e se é um dicionário
     if dados_modelo and isinstance(dados_modelo, dict):
         nome_modelo = dados_modelo.get("nome", "S/M")
         dados_marca = dados_modelo.get("marca_id")
-        
         if dados_marca and isinstance(dados_marca, dict):
             nome_marca = dados_marca.get("nome", "S/M")
     
+    # 2. Dados de Status (usando o alias que criamos na query)
+    dados_status = a.get("status_dados")
     if dados_status and isinstance(dados_status, dict):
-        nome_status = dados_status.get("nome","S/M")
+        nome_status = dados_status.get("nome", "S/M")
 
     serial = a["serial"]
-    label = f"S/M: {nome_marca} {nome_modelo} (SN: {serial}) - {nome_status}"
+    label = f"{nome_marca} {nome_modelo} (SN: {serial}) - {nome_status}"
     
     ativos_map[label] = a
 
@@ -62,141 +61,119 @@ usuarios_map_inv = {u["id"]: u["nome"] for u in usuarios_data}
 setores_map_inv = {s["id"]: s["nome"] for s in setores_data}
 status_map_inv = {s["id"]: s["nome"] for s in status_data}
 
-# Listas de Nomes (para dropdowns)
-lista_usuarios = ["Nenhum (Estoque)"] + list(usuarios_map.keys())
-lista_setores = list(setores_map.keys())
-lista_status = list(status_map.keys())
+opcao_manter = "Manter atual"
 
+lista_usuarios = [opcao_manter, "Nenhum (Estoque)"] + list(usuarios_map.keys())
+lista_setores = [opcao_manter] + list(setores_map.keys())
+lista_status = [opcao_manter] + list(status_map.keys())
 
 # --- Interface Principal ---
-st.title("Movimentação de Ativos")
+st.title("Movimentação de Ativos (Lote)")
 
-tab_movimentar, tab_historico = st.tabs(["Realizar Movimentação", "Histórico de Movimentações"])
+tab_movimentar, tab_historico = st.tabs(["📦 Realizar Movimentação", "📜 Histórico"])
 
-# --- Aba 1: Realizar Movimentação ---
+# --- ABA 1: Realizar Movimentação ---
 with tab_movimentar:
-    st.subheader("1. Selecione o Ativo")
+    st.subheader("1. Selecione os Ativos")
     
-    serial_selecionado = st.selectbox(
-        "Buscar por Serial Number",
+    chaves_selecionadas = st.multiselect(
+        "Buscar por Serial, Marca ou Modelo:",
         options=ativos_map.keys(),
-        index=None,
-        placeholder="Digite ou selecione o serial do ativo..."
+        placeholder="Selecione um ou mais ativos..."
     )
     
-    if serial_selecionado:
-        ativo_atual = ativos_map[serial_selecionado]
+    if chaves_selecionadas:
+        st.subheader(f"2. Itens Selecionados ({len(chaves_selecionadas)})")
         
-        st.subheader("2. Status Atual do Ativo")
-
-        def extrair_id(dado):
-            if isinstance(dado, dict):
-                return dado.get("id")
-            return dado
-        
-        id_usuario_origem = extrair_id(ativo_atual.get("usuario_id"))
-        id_local_origem = extrair_id(ativo_atual.get("local_id"))
-        id_status_origem = extrair_id(ativo_atual.get("status_id"))
-        
-        nome_usuario_origem = usuarios_map_inv.get(id_usuario_origem, "Nenhum (Estoque)")
-        nome_local_origem = setores_map_inv.get(id_local_origem, "N/A")
-        nome_status_origem = status_map_inv.get(id_status_origem, "N/A")
-        
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Usuário Atual", nome_usuario_origem)
-        col2.metric("Setor Atual", nome_local_origem)
-        col3.metric("Status Atual", nome_status_origem)
+        dados_preview = []
+        for chave in chaves_selecionadas:
+            ativo = ativos_map[chave]
+            
+            uid = ativo.get("usuario_id")
+            lid = ativo.get("local_id")
+            sid = ativo.get("status_id")
+            
+            dados_preview.append({
+                "Serial": ativo.get("serial"),
+                "Usuário Atual": usuarios_map_inv.get(uid, "Estoque"),
+                "Setor Atual": setores_map_inv.get(lid, "-"),
+                "Status Atual": status_map_inv.get(sid, "-")
+            })
+            
+        st.dataframe(pd.DataFrame(dados_preview), use_container_width=True, hide_index=True)
         
         st.divider()
         
-        st.subheader("3. Mover Para:")
+        st.subheader("3. Definir Destino")
+        st.info("Selecione **'Manter atual'** para não alterar o campo específico daquele ativo.")
+
         with st.form("form_movimentacao"):
             
             col_d1, col_d2, col_d3 = st.columns(3)
             
             with col_d1:
-                # CORREÇÃO: Verifica se o usuário de origem existe na lista. Se não (ex: é N/A), define índice 0
-                idx_usuario = lista_usuarios.index(nome_usuario_origem) if nome_usuario_origem in lista_usuarios else 0
-                
-                nome_usuario_destino = st.selectbox(
-                    "Novo Usuário", 
-                    options=lista_usuarios, 
-                    index=idx_usuario
-                )
-                
+                nome_usuario_destino = st.selectbox("Novo Usuário", options=lista_usuarios, index=0)
             with col_d2:
-                # CORREÇÃO: Mesma verificação para setor
-                idx_setor = lista_setores.index(nome_local_origem) if nome_local_origem in lista_setores else 0
-                
-                nome_local_destino = st.selectbox(
-                    "Novo Setor", 
-                    options=lista_setores, 
-                    index=idx_setor
-                )
-                
+                nome_local_destino = st.selectbox("Novo Setor", options=lista_setores, index=0)
             with col_d3:
-                # CORREÇÃO: Mesma verificação para status (Resolve o erro do N/A)
-                idx_status = lista_status.index(nome_status_origem) if nome_status_origem in lista_status else 0
-                
-                nome_status_destino = st.selectbox(
-                    "Novo Status", 
-                    options=lista_status, 
-                    index=idx_status
-                )
+                nome_status_destino = st.selectbox("Novo Status", options=lista_status, index=0)
             
-            observacao_input = st.text_area("Observação (Opcional)", placeholder="Ex: Devolvido para manutenção, tela quebrada.")
+            observacao_input = st.text_area("Observação", placeholder="Ex: Mudança de setor em massa.")
     
-            submitted = st.form_submit_button("Confirmar Movimentação")
+            submitted = st.form_submit_button(f"Confirmar Movimentação")
             
             if submitted:
-                # ... (o restante do código de salvamento permanece igual)
-                # "Traduzir" nomes de destino para IDs
-                id_usuario_destino = usuarios_map.get(nome_usuario_destino) 
-                id_local_destino = setores_map[nome_local_destino]
-                id_status_destino = status_map[nome_status_destino]
-                
-                # --- LÓGICA DA "TRANSAÇÃO" ---
-                with st.spinner("Processando movimentação..."):
-                    try:
-                        # 1. Cria o registro no "log" (tabela movimentacoes)
-                        log_data = {
-                            "ativo_id": ativo_atual['id'],
-                            "usuario_id": id_usuario_destino,
-                            "setor_id": id_local_destino,
-                            "status_id": id_status_destino,
-                            "observacao": observacao_input if observacao_input else None
-                        }
-                        supabase.table("movimentacoes").insert(log_data).execute()
+                with st.spinner("Processando..."):
+                    sucessos = 0
+                    erros = 0
+                    
+                    for chave in chaves_selecionadas:
+                        # Lógica "Manter Atual"
+                        ativo_atual = ativos_map[chave]
                         
-                        # 2. Atualiza o registro principal na tabela 'ativos'
-                        update_data = {
-                            "usuario_id": id_usuario_destino,
-                            "local_id": id_local_destino,
-                            "status_id": id_status_destino
-                        }
-                        supabase.table("ativos").update(update_data).eq("id", ativo_atual['id']).execute()
-                        
-                        st.success(f"Ativo {ativo_atual['serial']} movido com sucesso!")
-                        st.cache_data.clear() 
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"Erro ao salvar: {e}")
+                        id_user_final = ativo_atual.get("usuario_id") if nome_usuario_destino == opcao_manter else usuarios_map.get(nome_usuario_destino)
+                        id_local_final = ativo_atual.get("local_id") if nome_local_destino == opcao_manter else setores_map[nome_local_destino]
+                        id_status_final = ativo_atual.get("status_id") if nome_status_destino == opcao_manter else status_map[nome_status_destino]
 
-# --- Aba 2: Histórico de Movimentações ---
+                        try:
+                            # Executa Update e Log com os IDs calculados
+                            supabase.table("movimentacoes").insert({
+                                "ativo_id": ativo_atual['id'],
+                                "usuario_id": id_user_final,
+                                "setor_id": id_local_final,
+                                "status_id": id_status_final,
+                                "observacao": observacao_input
+                            }).execute()
+                            
+                            supabase.table("ativos").update({
+                                "usuario_id": id_user_final,
+                                "local_id": id_local_final,
+                                "status_id": id_status_final
+                            }).eq("id", ativo_atual['id']).execute()
+                            
+                            sucessos += 1
+                            
+                        except Exception as e:
+                            erros += 1
+                            st.error(f"Erro no ativo {ativo_atual['serial']}: {e}")
+                    
+                    if sucessos > 0:
+                        st.success(f"{sucessos} movimentações realizadas!")
+                        if erros == 0:
+                            st.cache_data.clear()
+                            st.rerun()
+
+# --- ABA 2: Histórico---
 with tab_historico:
-    st.subheader("Histórico Completo de Movimentações")
-    
+    st.subheader("Histórico Completo")
     serial_filtro_hist = st.selectbox(
-        "Filtrar histórico por Serial Number",
+        "Filtrar histórico por Ativo",
         options=["Todos os Ativos"] + list(ativos_map.keys()),
         index=0
     )
     
     with st.spinner("Carregando histórico..."):
         try:
-            # --- QUERY AJUSTADA ---
-            # Busca o log e traduz os IDs do *novo estado* para Nomes
             query = """
                 created_at, observacao,
                 ativos!inner(serial),
@@ -204,20 +181,14 @@ with tab_historico:
                 setores:setor_id(nome),
                 status:status_id(nome)
             """
-            
             query_builder = supabase.table("movimentacoes").select(query).order("created_at", desc=True)
-            
             if serial_filtro_hist != "Todos os Ativos":
                 ativo_id_filtro = ativos_map[serial_filtro_hist]["id"]
                 query_builder = query_builder.eq("ativo_id", ativo_id_filtro)
             
-            historico_data = query_builder.execute().data
+            historico_data = query_builder.limit(100).execute().data
             
-            if not historico_data:
-                st.info("Nenhum histórico de movimentação encontrado.")
-            else:
-                # --- DATAFRAME AJUSTADO ---
-                # Remove as colunas "De" e "Para" e mostra apenas o estado registrado
+            if historico_data:
                 df_list = []
                 for item in historico_data:
                     df_list.append({
@@ -228,9 +199,8 @@ with tab_historico:
                         "Status": item["status"]["nome"] if item["status"] else "N/A",
                         "Obs": item["observacao"]
                     })
-                
-                df_historico = pd.DataFrame(df_list)
-                st.dataframe(df_historico, width="stretch", hide_index=True)
-
+                st.dataframe(pd.DataFrame(df_list), use_container_width=True, hide_index=True)
+            else:
+                st.info("Sem histórico.")
         except Exception as e:
-            st.error(f"Erro ao carregar histórico: {e}")
+            st.error(f"Erro: {e}")

@@ -1,0 +1,34 @@
+[[pages]]
+path = "streamlit_app.py" 
+name = "Visão Geral"
+icon = "📊"
+
+[[pages]]
+path = "pages/Ativos.py"
+name = "Gestão de Ativos"
+icon = "💻"
+
+[[pages]]
+path = "pages/Movimentações.py"
+name = "Registrar Movimentação"
+icon = "🔄"
+
+[[pages]]
+path = "pages/Manutenções.py"
+name = "Controle de Manutenções"
+icon = "🛠️"
+
+[[pages]]
+path = "pages/Cadastro_Geral.py"
+name = "Cadastros Gerais"
+icon = "📝"
+
+[[pages]]
+path = "pages/Cadastro_de_Compras.py"
+name = "Registro de Compras"
+icon = "🛒"
+
+[[pages]]
+path = "pages/Usuários.py"
+name = "Gestão de Usuários"
+icon = "👥"

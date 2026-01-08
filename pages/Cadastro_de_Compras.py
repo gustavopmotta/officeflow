@@ -1,4 +1,4 @@
-from utils import sidebar_global, verificar_autenticacao
+from utils import verificar_autenticacao
 import streamlit as st
 import pandas as pd
 import random
@@ -6,10 +6,6 @@ import datetime
 
 # --- Conexão com Supabase ---
 supabase = verificar_autenticacao()
-
-# --- Configuração da Página ---
-st.set_page_config(page_title="Registrar Compra", layout="wide")
-sidebar_global()
 
 # --- Funções para Carregar Dados Auxiliares ---
 def carregar_opcoes():

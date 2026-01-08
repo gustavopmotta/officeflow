@@ -1,14 +1,9 @@
-from utils import sidebar_global, verificar_autenticacao
+from utils import verificar_autenticacao
 import streamlit as st
 import pandas as pd
 
 # --- Conexão com Supabase ---
 supabase = verificar_autenticacao()
-
-# --- Configuração Inicial ---
-st.set_page_config(page_title="Gerenciar Ativos", layout="wide")
-sidebar_global()
-
 
 # --- Função de Carregamento Centralizada e com Cache ---
 def fetch_table(table_name, select_query="*"):
