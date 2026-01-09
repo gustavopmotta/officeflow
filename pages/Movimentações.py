@@ -100,7 +100,7 @@ with tab_movimentar:
                 "Status Atual": status_map_inv.get(sid, "-")
             })
             
-        st.dataframe(pd.DataFrame(dados_preview), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(dados_preview), width="stretch", hide_index=True)
         
         st.divider()
         
@@ -199,7 +199,7 @@ with tab_historico:
                         "Status": item["status"]["nome"] if item["status"] else "N/A",
                         "Obs": item["observacao"]
                     })
-                st.dataframe(pd.DataFrame(df_list), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(df_list), width="stretch", hide_index=True)
             else:
                 st.info("Sem histórico.")
         except Exception as e:

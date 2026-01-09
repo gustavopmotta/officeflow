@@ -74,6 +74,7 @@ with cadastro_tab:
             key="editor_usuarios", 
             num_rows="fixed",
             width="stretch",
+            hide_index=True,
             column_config={
                 "id": None, # Esconde o ID
                 "nome": st.column_config.TextColumn("Nome", required=True),
