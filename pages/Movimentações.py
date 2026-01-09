@@ -70,7 +70,7 @@ lista_status = [opcao_manter] + list(status_map.keys())
 # --- Interface Principal ---
 st.title("Movimentação de Ativos (Lote)")
 
-tab_movimentar, tab_historico = st.tabs(["📦 Realizar Movimentação", "📜 Histórico"])
+tab_movimentar, tab_historico = st.tabs(["Realizar Movimentação", "Histórico"])
 
 # --- ABA 1: Realizar Movimentação ---
 with tab_movimentar:
