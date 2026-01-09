@@ -1,5 +1,6 @@
 from supabase import create_client, Client
 import streamlit as st
+import os
 import bcrypt
 import time
 
@@ -36,7 +37,7 @@ def verificar_autenticacao():
 
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            st.title("OFFICEFLOW")
+            st.image("assets/logo_officeflow.png", width="stretch")
             
             with st.form("login_form", clear_on_submit=False):
                 st.header("Login")
