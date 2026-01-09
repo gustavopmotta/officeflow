@@ -5,4 +5,3 @@ pydantic
 pandas
 bcrypt
 plotly
-st-pages
