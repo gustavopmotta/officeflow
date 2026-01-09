@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from utils import verificar_autenticacao
-from st_pages import get_nav_from_toml, add_page_title
 
 # --- Conexão com supabase ---
 supabase = verificar_autenticacao()
