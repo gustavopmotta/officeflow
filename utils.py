@@ -3,8 +3,6 @@ import streamlit as st
 import bcrypt
 import time
 
-manutencao = True
-
 # --- 1. Centralizando a Conexão ---
 @st.cache_resource()
 def init_connection():
@@ -22,7 +20,7 @@ def verificar_autenticacao():
     if "user" not in st.session_state:
         st.session_state.user = None
         
-    if st.session_state.user is None and manutencao == False:
+    if st.session_state.user is None:
         st.set_page_config(layout="centered")
         
         # Esconder barra lateral
