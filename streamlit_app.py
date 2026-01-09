@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from utils import sidebar_global, verificar_autenticacao
+from utils import verificar_autenticacao
 
 # --- Conexão com supabase ---
 supabase = verificar_autenticacao()
