@@ -73,16 +73,3 @@ def verificar_autenticacao():
         st.stop()
     
     return client
-
-# --- Barra lateral Global do Site ---
-def sidebar_global():
-    with st.sidebar:
-        st.markdown("### OFFICEFLOW")
-        
-        if st.session_state.user:
-            nome = st.session_state.user.get("nome", st.session_state.user.get("email"))
-            st.write(f"Usuário: **{nome}**")
-        
-            if st.button("Sair"):
-                st.session_state.user = None
-                st.rerun()

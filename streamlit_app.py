@@ -2,14 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from utils import sidebar_global, verificar_autenticacao
-from st_pages import get_nav_from_toml, add_page_title
 
 # --- Conexão com supabase ---
 supabase = verificar_autenticacao()
 
 # --- Configuração da Página ---
 st.set_page_config(layout="wide", page_title="OfficeFlow")
-sidebar_global()
 
 # --- Configuração de todas as Páginas ---
 dashboard = st.Page("pages/Dashboard.py", title="- Visão Geral", default=True)
@@ -31,3 +29,15 @@ pg = st.navigation(
 )
 
 pg.run()
+
+# --- Configuração da Barra Latera ---
+with st.sidebar:
+        st.markdown("### OFFICEFLOW")
+        
+        if st.session_state.user:
+            nome = st.session_state.user.get("nome", st.session_state.user.get("email"))
+            st.write(f"Usuário: **{nome}**")
+        
+            if st.button("Sair"):
+                st.session_state.user = None
+                st.rerun()
