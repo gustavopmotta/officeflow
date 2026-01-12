@@ -21,11 +21,15 @@ cad_geral   = st.Page("pages/Cadastro_Geral.py", title="> Cadastros Gerais")
 cad_compras = st.Page("pages/Cadastro_de_Compras.py", title="> Registro de Compras")
 usuarios    = st.Page("pages/Usuários.py", title="> Gestão de Usuários")
 
+ex_im_dados = st.Page("pages/Importar_Exportar.py", title="> Importar/Exportar Dados")
+backup = st.Page("pages/Backup.py", title="> Backup Geral")
+
 pg = st.navigation(
     {
         "Principal": [dashboard],
         "Operacional": [ativos, movim, manutencoes],
         "Administração": [cad_geral, cad_compras, usuarios],
+        "Banco de Dados": [ex_im_dados, backup]
     }
 )
 
