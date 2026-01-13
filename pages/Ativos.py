@@ -148,7 +148,7 @@ with tab_cadastro:
         
         st.divider()
         
-        with st.form("form_add"):
+        with st.form("form_add", clear_on_submit=True):
             st.markdown("##### 2. Dados do Equipamento")
             
             c1, c2, c3 = st.columns(3)

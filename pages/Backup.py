@@ -9,7 +9,7 @@ from utils import verificar_autenticacao
 supabase = verificar_autenticacao()
 
 st.title("Sistema de Backup e Restauração")
-st.markdown("Crie cópias de segurança de todo o banco de dados antes de realizar testes.")
+st.warning("Atenção: Não altere os arquivos do backup, isso impede o arquivo de ser lido na aba Restaurar.")
 
 # --- Definição de Tabelas ---
 TABELAS_ORDENADAS = [
@@ -18,15 +18,54 @@ TABELAS_ORDENADAS = [
     "movimentacoes", "manutencoes"                        # Dependem de ativos
 ]
 
+# --- Função de Estimativa ---
+def calcular_estatisticas():
+    """Consulta o banco apenas para contar linhas e estimar tamanho."""
+    total_linhas = 0
+    detalhes = {}
+    
+    # Peso médio estimado por linha em CSV (0.15 KB é uma média conservadora para texto)
+    PESO_MEDIO_KB = 0.15 
+    
+    for tabela in TABELAS_ORDENADAS:
+        # O parâmetro count='exact', head=True retorna apenas o número, sem baixar os dados
+        res = supabase.table(tabela).select("*", count="exact", head=True).execute()
+        count = res.count
+        total_linhas += count
+        detalhes[tabela] = count
+        
+    tamanho_est_kb = total_linhas * PESO_MEDIO_KB
+    
+    # Formatação do tamanho
+    if tamanho_est_kb > 1024:
+        tamanho_str = f"{tamanho_est_kb/1024:.2f} MB"
+    else:
+        tamanho_str = f"{tamanho_est_kb:.1f} KB"
+        
+    return total_linhas, tamanho_str, detalhes
+
 # --- Estrutura de Abas ---
-aba_backup, aba_restore = st.tabs(["Gerar Backup (Snapshot)", "Restaurar Banco de Dados"])
+aba_backup, aba_restore = st.tabs(["Gerar Backup", "Restaurar Banco de Dados"])
 
 # --- Aba 1: Gerar Backup ---
 with aba_backup:
-    st.header("Criar Snapshot do Sistema")
-    st.markdown("Esta ação baixará um arquivo .zip contendo todas as tabelas do sistema em formato CSV.")
+    st.header("Criar Backup do Banco de Dados")
 
-    if st.button("Gerar Backup Completo", type="primary"):
+    with st.container(border=True):
+        with st.spinner("Analisando tabelas..."):
+            total_reg, tamanho_est, detalhes_tab = calcular_estatisticas()
+
+            # Layout em 3 colunas de métricas
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total de Tabelas", len(TABELAS_ORDENADAS))
+            col2.metric("Total de Registros", total_reg)
+            col3.metric("Tamanho Estimado (.zip)", tamanho_est)
+
+            # Detalhes em Expander (para não poluir)
+            with st.expander("Ver detalhes por tabela"):
+                st.json(detalhes_tab)
+
+    if st.button("Gerar Backup"):
         with st.spinner("Compilando dados de todas as tabelas..."):
             try:
                 # Buffer em memória para o arquivo ZIP
@@ -67,7 +106,7 @@ with aba_backup:
 
 # --- Aba 2: Restaurar Backup ---
 with aba_restore:
-    st.header("Restaurar Dados")
+    st.header("Restaurar Banco de Dados")
     st.warning("Atenção: A restauração pode sobrescrever dados existentes!")
     
     arquivo_zip = st.file_uploader("Upload do arquivo de backup (.zip)", type="zip")

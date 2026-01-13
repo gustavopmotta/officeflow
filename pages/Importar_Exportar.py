@@ -38,11 +38,11 @@ with aba_export:
                     df = pd.DataFrame(dados)
                     
                     # 3. Exibição de prévia
-                    st.dataframe(df.head(), use_container_width=True)
+                    st.dataframe(df, width="stretch", hide_index=True)
                     st.caption(f"Total de registros encontrados: {len(df)}")
 
                     # 4. Preparação do arquivo CSV
-                    csv = df.to_csv(index=False).encode('utf-8')
+                    csv = df.to_csv(index=False, sep=";", decimal=",", encoding="utf-8-sig")
 
                     # 5. Disponibilização do Download
                     st.download_button(
@@ -73,16 +73,28 @@ with aba_import:
     if arquivo_upload is not None:
         try:
             # 1. Leitura do arquivo
-            df_upload = pd.read_csv(arquivo_upload)
+            try:
+                # Tenta padrão Web (UTF-8)
+                df_upload = pd.read_csv(arquivo_upload, sep=';', decimal=',', encoding='utf-8-sig', dtype=str)
+            except:
+                # Se der erro, tenta padrão Excel (Latin-1)
+                arquivo_upload.seek(0)
+                df_upload = pd.read_csv(arquivo_upload, sep=';', decimal=',', encoding='latin1', dtype=str)
             
             st.subheader("Pré-visualização dos dados")
-            st.dataframe(df_upload.head(), use_container_width=True)
+            st.dataframe(df_upload, width="stretch", hide_index=True)
             st.info(f"Registros prontos para importação: {len(df_upload)}")
 
             # 2. Ação de Importação
             if st.button("Confirmar Importação no Banco de Dados", type="primary"):
                 with st.spinner("Enviando dados para o Supabase..."):
-                    
+                    # Conversão de Inteiros
+                    for col in df_upload.select_dtypes(include=['float']).columns:
+                        is_integer = df[col].dropna().apply(lambda x: x.is_integer()).all()
+                        
+                        if is_integer:
+                            df_upload[col] = df_upload[col].astype('Int64')
+
                     # Tratamento de dados nulos (NaN -> None) para compatibilidade SQL
                     df_upload = df_upload.where(pd.notnull(df_upload), None)
                     
