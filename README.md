@@ -1,17 +1,60 @@
-# OFFICEFLOW
+# 🏢 OfficeFlow - Sistema de Gestão de Patrimônio
 
-O OfficeFlow é um sistema web interno para gerenciamento de inventário de ativos de TI.
+> Um sistema completo, minimalista e eficiente para controle de ativos, movimentações e manutenção, construído com **Streamlit** e **Supabase**.
 
-Ele permite que a empresa centralize o controle de seus equipamentos (como notebooks, mouses, monitores, etc.) desde o momento da compra até sua distribuição para os funcionários.
+![Badge em Desenvolvimento](https://img.shields.io/badge/Status-Em%20Desenvolvimento-blue)
+![Python](https://img.shields.io/badge/Python-3.10%2B-yellow)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.30%2B-red)
+![Supabase](https://img.shields.io/badge/Database-Supabase-green)
 
-As principais funcionalidades do site são:
+---
 
-1. Dashboard Principal: Exibe uma visão geral de todos os ativos cadastrados, permitindo filtrar e localizar itens rapidamente. Mostra quem está usando o quê, onde o item está localizado e qual seu status atual (como "Em Uso" ou "Em Estoque").
+## 📋 Sobre o Projeto
 
-2. Registro de Compras: Facilita a entrada de novos equipamentos em lote. O usuário pode registrar uma Nota Fiscal, a loja onde comprou, e cadastrar múltiplos itens (como 5 notebooks idênticos) de uma só vez, ligando todos eles a essa compra.
+O **OfficeFlow** é uma solução web para gerenciamento de inventário e patrimônio corporativo. O sistema permite o rastreamento completo do ciclo de vida dos ativos, desde a aquisição, movimentação entre setores/usuários, até o registro de manutenções e descarte.
 
-3. Cadastro de Ativos: Permite o registro de ativos de forma individual, definindo seu modelo, marca, número de série e atribuindo-o diretamente a um usuário e a um setor.
+O diferencial do projeto é sua interface focada em usabilidade (UX) e suas ferramentas robustas de administração de dados, permitindo migrações e backups seguros.
 
-4. Histórico de Compras: Oferece uma tela para auditar compras passadas. É possível ver uma lista de todas as Notas Fiscais cadastradas e expandir cada uma para ver quais ativos específicos foram adquiridos naquela compra.
+## ✨ Funcionalidades Principais
 
-5. Gerenciamento Geral: Funciona como uma área de "Configurações" onde o administrador pode cadastrar e editar as listas que alimentam os menus do sistema, como a lista de funcionários (usuários), a lista de setores, as marcas, os modelos de equipamentos e as lojas.
+### 🚀 Operacional
+* **Gestão de Ativos:** Cadastro completo de equipamentos (Patrimônio, Marca, Modelo, Setor, Status).
+* **Movimentações:** Registro de transferência de ativos entre setores ou responsáveis.
+* **Manutenções:** Histórico de reparos, custos e fornecedores.
+
+### ⚙️ Administrativo
+* **Cadastros Auxiliares:** Gerenciamento centralizado de Marcas, Modelos, Setores e Status.
+* **Gestão de Usuários:** Controle de acesso e perfis (Admin/User).
+* **Autenticação Segura:** Login integrado via Supabase Auth.
+
+### 🛡️ Segurança e Dados (Destaques)
+* **Backup & Restore (Snapshots):**
+    * Geração de **Backups Completos (.zip)** com um clique.
+    * Arquivos CSV formatados especificamente para **Excel Brasileiro** (Separador `;`, Decimal `,`, UTF-8-SIG).
+    * **Restauração Inteligente:** O sistema aceita uploads de backups, sanitiza os dados (converte `NaN` para `NULL`), corrige tipagem de inteiros e previne duplicidade.
+* **Importação em Massa (Smart Import):**
+    * Permite cadastrar centenas de ativos via planilha CSV.
+    * **Tradução Automática:** O usuário escreve o **NOME** do setor/marca (ex: "TI", "Dell") e o sistema busca automaticamente o **ID** correspondente no banco de dados.
+    * Blindagem contra erros de codificação (`UTF-8` vs `Latin-1/Excel`).
+
+## 🛠️ Tecnologias Utilizadas
+
+* **Frontend/Backend:** [Streamlit](https://streamlit.io/) (Python)
+* **Banco de Dados:** [Supabase](https://supabase.com/) (PostgreSQL)
+* **Manipulação de Dados:** Pandas & Numpy
+* **Visualização:** Matplotlib (para geração de logos/gráficos)
+
+## 📦 Estrutura do Projeto
+
+```text
+officeflow/
+├── assets/              # Imagens e Logos
+├── pages/               # Páginas da aplicação (Multipage App)
+│   ├── Backups.py       # Sistema de Backup e Restore
+│   ├── Importar.py      # Importação e Exportação de Dados
+│   ├── Ativos.py        # Gestão Operacional
+│   └── ...
+├── utils.py             # Funções globais (Auth, Sidebar, Conexão DB)
+├── streamlit_app.py     # Ponto de entrada (Entrypoint)
+├── requirements.txt     # Dependências do Python
+└── README.md            # Documentação
