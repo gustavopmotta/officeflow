@@ -3,8 +3,8 @@
 > Um sistema completo, minimalista e eficiente para controle de ativos, movimentações e manutenção, construído com **Streamlit** e **Supabase**.
 
 ![Badge em Desenvolvimento](https://img.shields.io/badge/Versão-0.8.1-F05032?style=flat-square&logo=git)
-![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.30%2B-FF4B4B?style=flat-square&logo=streamlit)
+![Python](https://img.shields.io/badge/Python-3.13.3%2B-3776AB?style=flat-square&logo=python)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.53.1%2B-FF4B4B?style=flat-square&logo=streamlit)
 ![Supabase](https://img.shields.io/badge/Database-Supabase-3FCF8E?style=flat-square&logo=supabase)
 
 ---
