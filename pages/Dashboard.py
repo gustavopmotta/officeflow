@@ -103,6 +103,7 @@ if not df_ativos.empty:
                 status_counts, 
                 values="Quantidade", 
                 names="Status", 
+                hole=.5,
                 color_discrete_sequence=px.colors.qualitative.Set1
             )
             st.plotly_chart(fig_status, width="stretch")
@@ -116,7 +117,8 @@ if not df_ativos.empty:
             fig_setor = px.pie(
                 setor_counts, 
                 values="Quantidade", 
-                names="Setor", 
+                names="Setor",
+                hole=.5,
                 color_discrete_sequence=px.colors.qualitative.D3
             )
             st.plotly_chart(fig_setor, width="stretch")
