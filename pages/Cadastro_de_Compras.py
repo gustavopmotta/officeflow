@@ -3,11 +3,27 @@ import streamlit as st
 import pandas as pd
 import random
 import datetime
+import re  # Importação adicionada para tratar a formatação da NF
 
 # --- Conexão com Supabase ---
 supabase = verificar_autenticacao()
 
-# --- Funções para Carregar Dados Auxiliares ---
+# --- Funções Auxiliares ---
+
+def formatar_nf_padrao(valor_nf):
+    """
+    Recebe qualquer string, remove não-números, garante 9 dígitos
+    e retorna no formato 000.000.000.
+    """
+    if not valor_nf:
+        return ""
+    # Remove tudo que não é dígito
+    apenas_numeros = re.sub(r'\D', '', str(valor_nf))
+    # Garante 9 dígitos com zeros a esquerda (ex: 540 -> 000000540)
+    apenas_numeros = apenas_numeros.zfill(9)
+    # Fatia e formata
+    return f"{apenas_numeros[:3]}.{apenas_numeros[3:6]}.{apenas_numeros[6:]}"
+
 def carregar_opcoes():
     """Busca dados das tabelas auxiliares para preencher os selectbox."""
     modelos = supabase.table("modelos").select("id, nome, categoria_id, marcas(nome)").order("nome").execute().data
@@ -16,12 +32,15 @@ def carregar_opcoes():
     status = supabase.table("status").select("id, nome").order("nome").execute().data
     estados = supabase.table("estados").select("id, nome").order("nome").execute().data
     lojas = supabase.table("lojas").select("id, nome").order("nome").execute().data 
+    # NOVA TABELA: Colaboradores
+    colaboradores = supabase.table("colaboradores").select("id, nome").order("nome").execute().data
 
-    return modelos, categorias, setores, status, estados, lojas
+    return modelos, categorias, setores, status, estados, lojas, colaboradores
 
 def carregar_historico_compras():
     try:
-        response = supabase.table("compras").select("*, lojas(nome), modelos(nome)").order("data_compra", desc=True).limit(50).execute()
+        # ALTERAÇÃO: Adicionado join com colaboradores(nome)
+        response = supabase.table("compras").select("*, lojas(nome), modelos(nome), colaboradores(nome)").order("data_compra", desc=True).limit(50).execute()
         dados = response.data
         
         lista_processada = []
@@ -44,18 +63,19 @@ def carregar_historico_compras():
                     except Exception as e:
                         print(f"Erro ao gerar URL: {e}")
 
-                # Dados da Loja e Modelo (joins seguros)
+                # Dados da Loja, Modelo e Comprador (joins seguros)
                 nome_loja = compra.get('lojas', {}).get('nome', 'N/A') if compra.get('lojas') else "N/A"
-                
-                # AJUSTE 2: Pegando o nome do modelo do objeto retornado pelo join
                 nome_modelo = compra.get('modelos', {}).get('nome', '-') if compra.get('modelos') else "-"
+                # ALTERAÇÃO: Pegando nome do comprador
+                nome_comprador = compra.get('colaboradores', {}).get('nome', '-') if compra.get('colaboradores') else "-"
 
                 lista_processada.append({
                     "ID": compra["id"],
                     "Data": pd.to_datetime(compra["data_compra"]).strftime('%d/%m/%Y'),
-                    "NF": compra["nota_fiscal"],
+                    "NF": compra["nota_fiscal"], # Já virá formatado do banco se salvo corretamente
                     "Modelo": nome_modelo,
                     "Loja": nome_loja,
+                    "Comprador": nome_comprador, # Nova Coluna
                     "Valor Total": compra["valor_total"],
                     "Comprovante": url_pdf
                 })
@@ -75,7 +95,8 @@ tab_cadastro, tab_historico = st.tabs(["Registrar Nova Compra", "Histórico e No
 # --- ABA 1: Cadastro ---
 with tab_cadastro:
     try:
-        modelos_data, categorias_data, setores_data, status_data, estados_data, lojas_data = carregar_opcoes()
+        # ALTERAÇÃO: Recebendo colaboradores
+        modelos_data, categorias_data, setores_data, status_data, estados_data, lojas_data, colaboradores_data = carregar_opcoes()
 
         # --- Mapeamentos ---
         categorias_map = {c['nome']: c['id'] for c in categorias_data}
@@ -83,6 +104,8 @@ with tab_cadastro:
         status_map = {s['nome']: s['id'] for s in status_data}
         estados_map = {e['nome']: e['id'] for e in estados_data}
         lojas_map = {f['nome']: f['id'] for f in lojas_data}
+        # NOVO MAPEAMENTO
+        colaboradores_map = {c['nome']: c['id'] for c in colaboradores_data}
 
         if not categorias_map or not setores_map or not status_map or not estados_map:
             st.error("Dados auxiliares incompletos. Verifique o 'Cadastro Geral'.")
@@ -158,9 +181,11 @@ with tab_cadastro:
                 
                 # --- 2A. Informações da Compra ---
                 st.subheader("2. Informações da Nota Fiscal")
-                col_nf, col_data, col_loja, col_valor_nf = st.columns(4)
+                # ALTERAÇÃO: Layout de colunas ajustado para incluir o Comprador
+                col_nf, col_data, col_loja, col_comprador, col_valor_nf = st.columns(5)
+                
                 with col_nf:
-                    nf = st.text_input("Nota Fiscal (Obrigatório)", key="compra_nf")
+                    st.text_input("Nota Fiscal", key="compra_nf", help="Será formatado como 000.000.000")
                 with col_data:
                     data_compra = st.date_input("Data da Compra", datetime.date.today(), key="compra_data")
                 with col_loja:
@@ -170,6 +195,15 @@ with tab_cadastro:
                         index=None,
                         placeholder="Selecione...",
                         key="compra_loja"
+                    )
+                with col_comprador:
+                    # NOVA COLUNA: Comprador
+                    comprador = st.selectbox(
+                        "Comprador",
+                        options=colaboradores_map.keys(),
+                        index=None,
+                        placeholder="Responsável...",
+                        key="compra_comprador"
                     )
                 with col_valor_nf:
                     valor_total_nota = st.number_input("Valor Total NF (R$)", min_value=0.0, format="%.2f", key="compra_valor_total")
@@ -208,13 +242,17 @@ with tab_cadastro:
 
             # --- ETAPA 3: LÓGICA DE SUBMISSÃO ---
             if submitted:
+                nf_raw = st.session_state.compra_nf # Pega o valor digitado
+
                 # --- Validações ---
-                if not nf:
+                if not nf_raw:
                     st.error("Erro: O campo 'Nota Fiscal' é obrigatório.")
                 elif 'compra_modelo' not in st.session_state or not st.session_state.compra_modelo:
                      st.error("Erro: Nenhum modelo foi selecionado.")
                 elif not loja:
                      st.error("Erro: O campo 'Loja' é obrigatório.")
+                elif not comprador:
+                     st.error("Erro: O campo 'Comprador' é obrigatório.")
                 elif any(s.strip() == "" for s in seriais_input):
                     st.error("Erro: Todos os campos de número de série devem ser preenchidos.")
                 elif len(set(seriais_input)) != len(seriais_input):
@@ -222,11 +260,15 @@ with tab_cadastro:
                 else:
                     with st.spinner("Registrando compra e ativos..."):
                         try:
+                            # ALTERAÇÃO: Formatação da NF
+                            nf_formatada = formatar_nf_padrao(nf_raw)
+
                             # --- LÓGICA DE UPLOAD DO PDF ---
                             path_para_salvar = None
                             if uploaded_pdf is not None:
                                 pdf_bytes = uploaded_pdf.getvalue()
-                                file_path_in_storage = f"public/nf-{nf.strip()}.pdf"
+                                # Usa a NF formatada no nome do arquivo para padronizar
+                                file_path_in_storage = f"public/nf-{nf_formatada}.pdf"
                                 try:
                                     supabase.storage.from_("NFs").upload(
                                         file_path_in_storage, pdf_bytes,
@@ -239,14 +281,15 @@ with tab_cadastro:
 
                             # --- ETAPA 1: INSERIR A COMPRA ---
                             loja_id_para_salvar = lojas_map[loja]
-                            # Recupera o ID do modelo selecionado no selectbox lá de cima
+                            # ALTERAÇÃO: Pegando ID do comprador
+                            comprador_id_para_salvar = colaboradores_map[comprador]
                             modelo_id_para_salvar = modelos_map[st.session_state.compra_modelo]
                             
                             nova_compra_dados = {
                                 "data_compra": data_compra.isoformat(),
-                                "nota_fiscal": nf,
+                                "nota_fiscal": nf_formatada, # Salva formatado
                                 "loja_id": loja_id_para_salvar,
-                                # AJUSTE 3: Salvando o modelo comprado na tabela de compras
+                                "comprador_id": comprador_id_para_salvar, # Novo campo salvo
                                 "modelo_comprado_id": modelo_id_para_salvar, 
                                 "valor_total": valor_total_nota if valor_total_nota > 0 else None,
                                 "nf_url": path_para_salvar
@@ -261,7 +304,6 @@ with tab_cadastro:
                             nova_compra_id = response_compra.data[0]['id']
                             
                             # --- ETAPA 2: PREPARAR OS ATIVOS ---
-                            # Usa o mesmo modelo ID
                             status_id = status_map[status_selecionado]
                             estado_id = estados_map[estado_selecionado]
                             local_id = setores_map[setor_selecionado]
@@ -283,7 +325,7 @@ with tab_cadastro:
                             response_ativos = supabase.table("ativos").insert(novos_ativos_lista).execute()
 
                             if response_ativos.data:
-                                st.success(f"Compra {nf} cadastrada com sucesso!")
+                                st.success(f"Compra {nf_formatada} cadastrada com sucesso!")
                                 st.rerun()
                             else:
                                 st.error(f"Erro ao cadastrar os ativos: {response_ativos.error.message}")
@@ -311,6 +353,9 @@ with tab_historico:
             column_config={
                 "ID": None,
                 "Valor Total": st.column_config.NumberColumn(format="R$ %.2f"),
+                # Configuração visual para o comprador
+                "Comprador": st.column_config.TextColumn("Comprador", width="medium"),
+                "NF": st.column_config.TextColumn("Nota Fiscal", help="Formato 000.000.000"),
                 "Comprovante": st.column_config.LinkColumn(
                     "Nota Fiscal",
                     display_text="Abrir PDF", 

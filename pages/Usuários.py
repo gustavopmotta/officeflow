@@ -13,7 +13,7 @@ cadastro_tab, gerenciar_tab = st.tabs(["Cadastrar / Editar", "Gerenciar"])
 
 # --- Identificação de Dados ---
 ativos_data = supabase.table("ativos").select("*, modelos(nome, marcas(nome)), status(nome)").execute().data
-usuarios_data = supabase.table("usuarios").select("id, nome, email, setor_id").order("nome").execute().data
+colaboradores_data = supabase.table("colaboradores").select("id, nome, email, setor_id").order("nome").execute().data
 setores_data = supabase.table("setores").select("id, nome").order("nome").execute().data
 status_data = supabase.table("status").select("id", "nome").order("nome").execute().data
 
@@ -45,7 +45,7 @@ with cadastro_tab:
                     "email": email_usuario,
                     "setor_id": setor_usuario,
                 }
-                supabase.table("usuarios").insert(novo_usuario_dados).execute()
+                supabase.table("colaboradores").insert(novo_usuario_dados).execute()
                 st.success(f"Usuário '{nome_usuario}' cadastrado!")
                 st.cache_data.clear()
                 st.rerun()
@@ -54,7 +54,7 @@ with cadastro_tab:
 
     # --- Gerenciamento de Usuário ---
     try:
-        df_users = pd.DataFrame(usuarios_data)
+        df_users = pd.DataFrame(colaboradores_data)
 
         # CORREÇÃO 1: Traduzir os IDs para Nomes ANTES de criar o editor
         # Se houver um ID no banco que não tem nome correspondente, preenchemos com vazio para não dar erro
@@ -71,7 +71,7 @@ with cadastro_tab:
 
         edited_df_users = st.data_editor(
             df_users, 
-            key="editor_usuarios", 
+            key="editor_colaboradores", 
             num_rows="fixed",
             width="stretch",
             hide_index=True,
@@ -116,7 +116,7 @@ with cadastro_tab:
                             "setor_id": id_setor_salvar
                         }
 
-                        supabase.table("usuarios").update(dados_para_salvar).eq("id", item_id).execute()
+                        supabase.table("colaboradores").update(dados_para_salvar).eq("id", item_id).execute()
                         updates_count += 1
                     else:
                         st.warning(f"Setor '{nome_setor_atual}' inválido para o usuário {row['nome']}.")
@@ -135,14 +135,14 @@ with cadastro_tab:
 # --- ABA 02: Gerenciamento de Usuários ---
 with gerenciar_tab:
     # --- Mapeamento de Dados
-    usuarios_map = {u["nome"]: u["id"] for u in usuarios_data}
+    colaboradores_map = {u["nome"]: u["id"] for u in colaboradores_data}
 
     # --- Inicio da Aba ---
     st.subheader("1. Selecione um usuário para gerenciar")
 
     usuario_selecionado = st.selectbox(
         "Usuário",
-        options=usuarios_map.keys()
+        options=colaboradores_map.keys()
         )
     
     # --- Criação de Colunas
@@ -150,7 +150,7 @@ with gerenciar_tab:
     
     # --- COLUNA 1.1: Ativos Usados ---
     with col1:
-        id_usuario_alvo = usuarios_map[usuario_selecionado]
+        id_usuario_alvo = colaboradores_map[usuario_selecionado]
     
         ativos_filtrados = []
         for ativo in ativos_data:
@@ -188,7 +188,7 @@ with gerenciar_tab:
 
     # --- COLUNA 1.2: Histórico de Movimentações ---
     with col2:
-        id_usuario_alvo = usuarios_map[usuario_selecionado]
+        id_usuario_alvo = colaboradores_map[usuario_selecionado]
 
         try:
             response = supabase.table("movimentacoes").select(

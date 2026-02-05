@@ -15,17 +15,17 @@ def carregar_dados_auxiliares():
         """
         ativos = supabase.table("ativos").select(query).order("id").execute().data
         
-        usuarios = supabase.table("usuarios").select("id, nome").order("nome").execute().data
+        colaboradores = supabase.table("colaboradores").select("id, nome").order("nome").execute().data
         setores = supabase.table("setores").select("id, nome").order("nome").execute().data 
         status = supabase.table("status").select("id, nome").order("nome").execute().data
         
-        return ativos, usuarios, setores, status
+        return ativos, colaboradores, setores, status
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
         return [], [], [], []
 
 # --- Carrega os dados ---
-ativos_data, usuarios_data, setores_data, status_data = carregar_dados_auxiliares()
+ativos_data, colaboradores_data, setores_data, status_data = carregar_dados_auxiliares()
 
 # --- Formatação do nome (Criação do Label) ---
 ativos_map = {}
@@ -53,17 +53,17 @@ for a in ativos_data:
     ativos_map[label] = a
 
 # --- Mapas de "Tradução" (ID <-> Nome) ---
-usuarios_map = {u["nome"]: u["id"] for u in usuarios_data}
+colaboradores_map = {u["nome"]: u["id"] for u in colaboradores_data}
 setores_map = {s["nome"]: s["id"] for s in setores_data}
 status_map = {s["nome"]: s["id"] for s in status_data}
 
-usuarios_map_inv = {u["id"]: u["nome"] for u in usuarios_data}
+colaboradores_map_inv = {u["id"]: u["nome"] for u in colaboradores_data}
 setores_map_inv = {s["id"]: s["nome"] for s in setores_data}
 status_map_inv = {s["id"]: s["nome"] for s in status_data}
 
 opcao_manter = "Manter atual"
 
-lista_usuarios = [opcao_manter, "Nenhum (Estoque)"] + list(usuarios_map.keys())
+lista_colaboradores = [opcao_manter, "Nenhum (Estoque)"] + list(colaboradores_map.keys())
 lista_setores = [opcao_manter] + list(setores_map.keys())
 lista_status = [opcao_manter] + list(status_map.keys())
 
@@ -95,7 +95,7 @@ with tab_movimentar:
             
             dados_preview.append({
                 "Serial": ativo.get("serial"),
-                "Usuário Atual": usuarios_map_inv.get(uid, "Estoque"),
+                "Usuário Atual": colaboradores_map_inv.get(uid, "Estoque"),
                 "Setor Atual": setores_map_inv.get(lid, "-"),
                 "Status Atual": status_map_inv.get(sid, "-")
             })
@@ -112,7 +112,7 @@ with tab_movimentar:
             col_d1, col_d2, col_d3 = st.columns(3)
             
             with col_d1:
-                nome_usuario_destino = st.selectbox("Novo Usuário", options=lista_usuarios, index=0)
+                nome_usuario_destino = st.selectbox("Novo Usuário", options=lista_colaboradores, index=0)
             with col_d2:
                 nome_local_destino = st.selectbox("Novo Setor", options=lista_setores, index=0)
             with col_d3:
@@ -131,7 +131,7 @@ with tab_movimentar:
                         # Lógica "Manter Atual"
                         ativo_atual = ativos_map[chave]
                         
-                        id_user_final = ativo_atual.get("usuario_id") if nome_usuario_destino == opcao_manter else usuarios_map.get(nome_usuario_destino)
+                        id_user_final = ativo_atual.get("usuario_id") if nome_usuario_destino == opcao_manter else colaboradores_map.get(nome_usuario_destino)
                         id_local_final = ativo_atual.get("local_id") if nome_local_destino == opcao_manter else setores_map[nome_local_destino]
                         id_status_final = ativo_atual.get("status_id") if nome_status_destino == opcao_manter else status_map[nome_status_destino]
 
@@ -177,7 +177,7 @@ with tab_historico:
             query = """
                 created_at, observacao,
                 ativos!inner(serial),
-                usuarios:usuario_id(nome),
+                colaboradores:usuario_id(nome),
                 setores:setor_id(nome),
                 status:status_id(nome)
             """
@@ -194,7 +194,7 @@ with tab_historico:
                     df_list.append({
                         "Data": pd.to_datetime(item["created_at"]).strftime("%d/%m/%Y %H:%M"),
                         "Serial": item["ativos"]["serial"],
-                        "Usuário": item["usuarios"]["nome"] if item["usuarios"] else "Estoque",
+                        "Usuário": item["colaboradores"]["nome"] if item["colaboradores"] else "Estoque",
                         "Local": item["setores"]["nome"] if item["setores"] else "N/A",
                         "Status": item["status"]["nome"] if item["status"] else "N/A",
                         "Obs": item["observacao"]

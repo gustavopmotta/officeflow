@@ -17,7 +17,7 @@ def carregar_dados_sistema():
             "setores": fetch_table("setores", "id, nome"),
             "status": fetch_table("status", "id, nome"),
             "estados": fetch_table("estados", "id, nome"),
-            "usuarios": fetch_table("usuarios", "id, nome"),
+            "colaboradores": fetch_table("colaboradores", "id, nome"),
             "modelos": fetch_table("modelos", "id, nome, categoria_id, marcas(nome)")
         }
         return dados
@@ -53,7 +53,7 @@ map_cats_inv, map_cats = criar_mapas(dados["categorias"])
 map_setor_inv, map_setor = criar_mapas(dados["setores"])
 map_status_inv, map_status = criar_mapas(dados["status"])
 map_estado_inv, map_estado = criar_mapas(dados["estados"])
-map_user_inv, map_user = criar_mapas(dados["usuarios"])
+map_user_inv, map_user = criar_mapas(dados["colaboradores"])
 map_model_inv, map_model = criar_mapas(lista_modelos_processada)
 
 # --- Interface ---

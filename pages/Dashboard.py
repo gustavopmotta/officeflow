@@ -16,7 +16,7 @@ def carregar_dados_dashboard():
         df_ativos = pd.DataFrame(response_ativos.data)
 
         # 2. Busca Movimentações Recentes (Últimas 10)
-        query_mov = "created_at, ativos(serial), usuarios(nome), setores(nome), status(nome)"
+        query_mov = "created_at, ativos(serial), colaboradores(nome), setores(nome), status(nome)"
         response_mov = supabase.table("movimentacoes").select(query_mov).order("created_at", desc=True).limit(10).execute()
         df_movimentacoes = pd.DataFrame(response_mov.data)
 
@@ -140,7 +140,7 @@ with col_tab_mov:
             lista_display_mov.append({
                 "Data": pd.to_datetime(row["created_at"]).strftime("%d/%m %H:%M"),
                 "Ativo": row["ativos"]["serial"] if row["ativos"] else "?",
-                "Usuário": row["usuarios"]["nome"] if row.get("usuarios") else "Estoque",
+                "Usuário": row["colaboradores"]["nome"] if row.get("colaboradores") else "Estoque",
                 "Destino": row["setores"]["nome"] if row.get("setores") else "-",
                 "Status": row["status"]["nome"] if row.get("status") else "-"
             })

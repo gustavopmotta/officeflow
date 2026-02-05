@@ -13,7 +13,7 @@ st.warning("Atenção: Não altere os arquivos do backup, isso impede o arquivo 
 
 # --- Definição de Tabelas ---
 TABELAS_ORDENADAS = [
-    "marcas", "modelos", "setores", "status", "usuarios", # Cadastros Básicos
+    "marcas", "modelos", "setores", "status", "colaboradores", # Cadastros Básicos
     "ativos",                                             # Depende dos anteriores
     "movimentacoes", "manutencoes"                        # Dependem de ativos
 ]

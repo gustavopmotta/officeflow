@@ -10,7 +10,7 @@ st.markdown("Importação e exportação em massa para o banco de dados.")
 
 # --- Definição de Segurança ---
 # Lista de tabelas permitidas para evitar acesso indevido a tabelas de sistema
-TABELAS_DISPONIVEIS = ["ativos", "movimentacoes", "manutencoes", "setores", "usuarios"]
+TABELAS_DISPONIVEIS = ["ativos", "movimentacoes", "manutencoes", "setores", "colaboradores"]
 
 # --- Estrutura de Navegação Interna ---
 aba_export, aba_import = st.tabs(["Exportar (Download)", "Importar (Upload)"])
