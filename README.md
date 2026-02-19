@@ -9,6 +9,9 @@
 
 ---
 
+> [!WARNING]
+> Devido a recomendações da biblioteca "Reflex" esse projeto será continuado em outro repositório.
+
 ## Sobre o Projeto
 
 O **OfficeFlow** é uma solução web para gerenciamento de inventário e patrimônio corporativo. O sistema permite o rastreamento completo do ciclo de vida dos ativos, desde a aquisição, movimentação entre setores/usuários, até o registro de manutenções e descarte.

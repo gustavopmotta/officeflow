@@ -50,6 +50,8 @@ st.title("Visão Geral do Patrimônio")
 st.markdown("Monitoramento de ativos, movimentações e alertas de manutenção.")
 st.divider()
 
+st.warning("Devido a recomendações da biblioteca Reflex esse projeto será continuado em outro repositório.")
+
 # --- Seção 1: Indicadores Chave (KPIs) ---
 with st.expander("Dados Gerais", expanded=True):
     col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
