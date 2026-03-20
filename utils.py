@@ -1,4 +1,4 @@
-from supabase import create_client, Client
+import supabase
 import streamlit as st
 import os
 import bcrypt
@@ -9,7 +9,50 @@ import time
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    return supabase.create_client(url, key)
+
+def criar_usuario_admin(supabase, nome, email, senha_plana):
+    try:
+        salt = bcrypt.gensalt()
+        senha_hash = bcrypt.hashpw(senha_plana.encode('utf-8'), salt)
+        
+        senha_hash_str = senha_hash.decode('utf-8')
+
+        dados_insert = {
+            "nome": nome,
+            "email": email.strip().lower(),
+            "senha_hash": senha_hash_str
+        }
+
+        response = supabase.table("user_sistema").insert(dados_insert).execute()
+        
+        if response.data:
+            return True, "Usuário registrado com sucesso!"
+        else:
+            return False, "Erro desconhecido ao registrar usuário."
+            
+    except Exception as e:
+        return False, f"Erro no banco de dados: {e}"
+
+def atualizar_senha_usuario(supabase, usuario_id, nova_senha_plana):
+    try:      
+        # Gera o novo hash
+        salt = bcrypt.gensalt()
+        senha_hash = bcrypt.hashpw(nova_senha_plana.encode('utf-8'), salt)
+        senha_hash_str = senha_hash.decode('utf-8')
+
+        # Atualiza apenas a coluna 'senha_hash' no banco, buscando pelo ID
+        response = supabase.table("user_sistema").update({
+            "senha_hash": senha_hash_str
+        }).eq("id", usuario_id).execute()
+        
+        if response.data:
+            return True, "Senha atualizada com sucesso!"
+        else:
+            return False, "Erro ao atualizar a senha no banco."
+            
+    except Exception as e:
+        return False, f"Erro no banco de dados: {e}"
 
 def verificar_autenticacao():
     try:

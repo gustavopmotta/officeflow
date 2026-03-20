@@ -11,10 +11,6 @@ supabase = verificar_autenticacao()
 # --- Funções Auxiliares ---
 
 def formatar_nf_padrao(valor_nf):
-    """
-    Recebe qualquer string, remove não-números, garante 9 dígitos
-    e retorna no formato 000.000.000.
-    """
     if not valor_nf:
         return ""
     # Remove tudo que não é dígito
@@ -25,7 +21,6 @@ def formatar_nf_padrao(valor_nf):
     return f"{apenas_numeros[:3]}.{apenas_numeros[3:6]}.{apenas_numeros[6:]}"
 
 def carregar_opcoes():
-    """Busca dados das tabelas auxiliares para preencher os selectbox."""
     modelos = supabase.table("modelos").select("id, nome, categoria_id, marcas(nome)").order("nome").execute().data
     categorias = supabase.table("categorias").select("id, nome").order("nome").execute().data
     setores = supabase.table("setores").select("id, nome").order("nome").execute().data
@@ -290,7 +285,6 @@ with tab_cadastro:
                                 "nota_fiscal": nf_formatada, # Salva formatado
                                 "loja_id": loja_id_para_salvar,
                                 "comprador_id": comprador_id_para_salvar, # Novo campo salvo
-                                "modelo_comprado_id": modelo_id_para_salvar, 
                                 "valor_total": valor_total_nota if valor_total_nota > 0 else None,
                                 "nf_url": path_para_salvar
                             }

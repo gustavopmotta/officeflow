@@ -16,20 +16,22 @@ dashboard = st.Page("pages/Dashboard.py", title="> Visão Geral", default=True)
 ativos      = st.Page("pages/Ativos.py", title="> Gestão de Ativos")
 movim       = st.Page("pages/Movimentações.py", title="> Registrar Movimentação")
 manutencoes = st.Page("pages/Manutenções.py", title="> Controle de Manutenções")
+acessorios = st.Page("pages/Acessorios.py", title="> Gerenciar Acessórios")
 
 cad_geral   = st.Page("pages/Cadastro_Geral.py", title="> Cadastros Gerais")
 cad_compras = st.Page("pages/Cadastro_de_Compras.py", title="> Registro de Compras")
 usuarios    = st.Page("pages/Usuários.py", title="> Gestão de Usuários")
 
+administradores = st.Page("pages/Administradores.py", title="> Gerenciar Administradores")
 ex_im_dados = st.Page("pages/Importar_Exportar.py", title="> Importar/Exportar Dados")
 backup = st.Page("pages/Backup.py", title="> Backup Geral")
 
 pg = st.navigation(
     {
         "Principal": [dashboard],
-        "Operacional": [ativos, movim, manutencoes],
+        "Operacional": [ativos, movim, manutencoes, acessorios],
         "Administração": [cad_geral, cad_compras, usuarios],
-        "Banco de Dados": [ex_im_dados, backup]
+        "Banco de Dados": [ex_im_dados, backup, administradores]
     }
 )
 
