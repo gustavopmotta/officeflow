@@ -35,7 +35,7 @@ def carregar_opcoes():
 def carregar_historico_compras():
     try:
         # ALTERAÇÃO: Adicionado join com colaboradores(nome)
-        response = supabase.table("compras").select("*, lojas(nome), modelos(nome), colaboradores(nome)").order("data_compra", desc=True).limit(50).execute()
+        response = supabase.table("compras").select("*, lojas(nome), colaboradores(nome)").order("data_compra", desc=True).limit(50).execute()
         dados = response.data
         
         lista_processada = []
@@ -60,7 +60,6 @@ def carregar_historico_compras():
 
                 # Dados da Loja, Modelo e Comprador (joins seguros)
                 nome_loja = compra.get('lojas', {}).get('nome', 'N/A') if compra.get('lojas') else "N/A"
-                nome_modelo = compra.get('modelos', {}).get('nome', '-') if compra.get('modelos') else "-"
                 # ALTERAÇÃO: Pegando nome do comprador
                 nome_comprador = compra.get('colaboradores', {}).get('nome', '-') if compra.get('colaboradores') else "-"
 
@@ -68,7 +67,6 @@ def carregar_historico_compras():
                     "ID": compra["id"],
                     "Data": pd.to_datetime(compra["data_compra"]).strftime('%d/%m/%Y'),
                     "NF": compra["nota_fiscal"], # Já virá formatado do banco se salvo corretamente
-                    "Modelo": nome_modelo,
                     "Loja": nome_loja,
                     "Comprador": nome_comprador, # Nova Coluna
                     "Valor Total": compra["valor_total"],
